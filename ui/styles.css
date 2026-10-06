@@ -627,3 +627,109 @@ input[type="date"].input, input[type="time"].input { font-variant-numeric: tabul
 .chip.gold { white-space: normal; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .cell.bday .cake { font-size: 13px; top: 9px; right: 8px; }
 #edDatePopEnd { left: auto; right: 0; }
+
+/* =====================================================================
+   Анимации (ui/fx.js)
+   ===================================================================== */
+:root {
+  --lava: linear-gradient(115deg, #FFD24D 0%, #FF8A1F 22%, #FF3D2E 42%, #C9183A 52%, #FF5A1F 64%, #FFB23D 82%, #FFD24D 100%);
+  --lava-glow: 0 0 22px rgba(255, 106, 30, .7), 0 0 40px rgba(255, 60, 30, .3);
+  --wave: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 200' preserveAspectRatio='none'%3E%3Cpath d='M0 100 Q14 92 28 100 T56 100 V200 H0Z' fill='black'/%3E%3C/svg%3E");
+}
+
+/* контейнеры и цели переливания */
+.cal, .bigcal, #nav { position: relative; }
+.day, .cell, .nav button { isolation: isolate; }
+.nav button { position: relative; overflow: hidden; }
+
+.fx-ghost, .fx-fill, .fx-pill {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden;
+  border-radius: inherit; background: var(--grad); box-shadow: var(--glow);
+}
+.fx-ghost .lv, .fx-fill .lv, .fx-pill .lv {
+  position: absolute; inset: -25%;
+  background:
+    radial-gradient(ellipse 20% 11% at 30% 28%, rgba(255, 245, 200, .5), transparent 70%),
+    repeating-radial-gradient(ellipse at 40% 50%, rgba(255, 240, 200, .1) 0 3px, transparent 3px 11px),
+    var(--lava);
+  background-size: 100% 100%, 160% 160%, 300% 300%;
+  animation: lavaFlow 1.1s linear infinite;
+}
+.fx-ghost.plain .lv, .fx-fill.plain .lv, .fx-pill.plain .lv { display: none; }
+.fx-ghost.lava, .fx-fill.lava { box-shadow: var(--lava-glow); }
+.fx-pill .lv { opacity: 0; }
+@keyframes lavaFlow {
+  from { background-position: 0 0, 0% 0%, 0% 50%; }
+  to   { background-position: 8% 6%, 100% 100%, 100% 50%; }
+}
+.wavy {
+  -webkit-mask-image: var(--wave); mask-image: var(--wave);
+  -webkit-mask-repeat: repeat-x; mask-repeat: repeat-x;
+  -webkit-mask-size: 56px 200%; mask-size: 56px 200%;
+}
+.fx-stream { position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none; overflow: visible; }
+.fx-stream path { fill: none; stroke-linecap: round; filter: drop-shadow(0 0 4px rgba(255, 110, 40, .8)); }
+.fx-stream.plain path { filter: drop-shadow(0 0 4px rgba(110, 100, 255, .7)); }
+
+/* пока льётся — у цели своей подсветки нет, её рисует жидкость */
+.pouring .day.sel, #nav.pouring button.active { background: transparent !important; box-shadow: none !important; }
+.seg { position: relative; isolation: isolate; }
+.seg.sliding button.on { background: transparent !important; box-shadow: none !important; }
+.fx-pill { border-radius: 10px; }
+
+/* искры */
+.fx-spark { position: absolute; z-index: 4; width: 6px; height: 6px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle at 35% 35%, #FFF6D0, #FFB23D 55%, #FF4A1F); box-shadow: 0 0 6px rgba(255, 120, 40, .8); }
+.fx-spark.fixed { position: fixed; z-index: 90; }
+
+/* нажатие: проседание и тёплая волна */
+.btn, .nav button, .seg button, .fchip, .icon-btn, .side-actions button, .presets button, .mbtn, .mt, .ck, .checkrow, .summary, .vac-banner {
+  position: relative; overflow: hidden; isolation: isolate;
+  transition: transform .18s cubic-bezier(.3, 1.6, .5, 1), background .15s, color .15s, border-color .15s, filter .15s, box-shadow .15s;
+}
+.btn:active, .nav button:active, .seg button:active, .fchip:active, .icon-btn:active, .side-actions button:active,
+.presets button:active, .mbtn:active, .mt:active, .ck:active, .checkrow:active, .summary:active, .vac-banner:active,
+.day:active, .cell:active, .check:active { transform: scale(.95); }
+.day, .cell, .check { transition: transform .18s cubic-bezier(.3, 1.6, .5, 1), background .12s, border-color .12s; }
+.fx-ripple { position: absolute; z-index: -1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 190, 120, .45), rgba(255, 120, 60, .12) 60%, transparent 70%); }
+.fx-ripple.plain { background: radial-gradient(circle, rgba(170, 180, 255, .4), rgba(120, 110, 255, .1) 60%, transparent 70%); }
+
+/* перелистывание месяца */
+.slide-l { animation: slideL .32s cubic-bezier(.2, .8, .3, 1); }
+.slide-r { animation: slideR .32s cubic-bezier(.2, .8, .3, 1); }
+@keyframes slideL { from { opacity: .2; transform: translateX(22px); } to { opacity: 1; transform: none; } }
+@keyframes slideR { from { opacity: .2; transform: translateX(-22px); } to { opacity: 1; transform: none; } }
+
+/* живой огонь */
+.flame svg, .item .title .fire svg.i { transform-origin: 50% 100%; animation: flick 1.9s ease-in-out infinite; }
+@keyframes flick {
+  0%, 100% { transform: scale(1, 1) skewX(0); }
+  25% { transform: scale(.97, 1.05) skewX(-2deg); }
+  50% { transform: scale(1.02, .97) skewX(1deg); }
+  75% { transform: scale(.98, 1.04) skewX(2deg); }
+}
+.item.done .title .fire svg.i { animation: none; }
+
+/* «выполнено»: галочка прорисовывается, огонь гаснет с дымком */
+.item.just .check { animation: checkPop .4s cubic-bezier(.3, 1.6, .5, 1); }
+.item.just .check svg.i path { stroke-dasharray: 24; animation: draw .45s .05s ease-out both; }
+@keyframes checkPop { 0% { transform: scale(.7); } 100% { transform: scale(1); } }
+@keyframes draw { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+.item.just .title .fire { position: relative; animation: douse .9s ease-out; }
+.item.just .title .fire::after {
+  content: ""; position: absolute; left: 50%; top: -2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(170, 170, 190, .7), transparent 70%); animation: smoke 1s ease-out forwards;
+}
+@keyframes douse { 0% { color: #FF7A1A; transform: scale(1.25); } 100% { transform: none; } }
+@keyframes smoke { 0% { transform: translateY(0) scale(.6); opacity: .9; } 100% { transform: translateY(-18px) scale(2.2); opacity: 0; } }
+
+/* смена темы — круговое раскрытие (View Transitions) */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+
+/* анимации выключены */
+.anim-off *, .anim-off *::before, .anim-off *::after { animation: none !important; }
+.anim-off .confetti { display: none; }
+.setting { flex-wrap: wrap; row-gap: 10px; }
+.setting .txt { flex: 1 1 170px; }
+.setting > .seg { margin-left: auto; }

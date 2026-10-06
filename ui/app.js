@@ -34,7 +34,7 @@ const S = {
   page: "home", today: null, selected: null, view: null,
   allRange: "week", allCat: "", statsPeriod: "week",
   settings: {}, categories: {}, repeats: {}, canAutostart: false, todayItems: [],
-  ed: null, ctx: null, mp: null, slide: 0, anim: "lava",
+  ed: null, ctx: null, mp: null, slide: 0, anim: "lava", speed: 450, justDone: null,
 };
 
 /* ===================== Утилиты ===================== */
@@ -436,7 +436,7 @@ function renderSettings() {
         <div class="txt"><b>Как тебя зовут</b><small>Для приветствия на главной</small></div>
         <input class="input" id="setName" style="width:170px" maxlength="30" value="${esc(st.name)}"></div>
       <div class="setting"><span class="ic">${icon("chat")}</span>
-        <div class="txt"><b>Обращение</b><small>Как приложение говорит с тобой: «сделал» или «сделала»</small></div>
+        <div class="txt"><b>Обращение</b><small>«Ты всё сделал» или «сделала»</small></div>
         ${seg("set-gender", [["m", "Мужское"], ["f", "Женское"], ["n", "Нейтральное"]], st.gender || "m")}</div>
       <div class="setting"><span class="ic">${icon(st.theme === "dark" ? "moon" : "sun")}</span>
         <div class="txt"><b>Тема</b><small>Можно переключать и кнопкой в меню</small></div>
@@ -455,7 +455,7 @@ function renderSettings() {
     </div>
     <div class="card"><div class="card-head"><h3>Анимации</h3></div>
       <div class="setting"><span class="ic">${icon("flame")}</span>
-        <div class="txt"><b>Эффект</b><small>${REDUCED ? "В Windows выключены анимации — Flint тоже показывает всё статично" : "Как подсветка переливается между пунктами"}</small></div>
+        <div class="txt"><b>Эффект</b><small>${REDUCED ? "В Windows выключены анимации — Flint тоже показывает всё статично" : "Как переливается подсветка"}</small></div>
         ${seg("set-anim", [["lava", "🔥 Лава"], ["plain", "Без лавы"], ["off", "Выключены"]], st.anim_effect || "lava")}</div>
       <div class="setting"><span class="ic">${icon("clock")}</span>
         <div class="txt"><b>Скорость</b><small>Сколько длится переливание</small></div>
@@ -514,10 +514,32 @@ async function refresh(animate = false) {
   S.mp = null;
   page.innerHTML = html;
   if (animate) { page.style.animation = "none"; void page.offsetWidth; page.style.animation = ""; }
+  afterRender(page);
+}
+
+function afterRender(page) {
+  // перелистывание месяца
+  if (S.slide && S.anim !== "off") {
+    const g = page.querySelector(".cal, .bigcal");
+    if (g) g.classList.add(S.slide > 0 ? "slide-l" : "slide-r");
+  }
+  S.slide = 0;
+  // только что отмеченное «выполнено»: галочка прорисовывается, огонь гаснет
+  if (S.justDone) {
+    const [id, date] = S.justDone;
+    page.querySelectorAll(`.item[data-id="${id}"][data-date="${date}"]`).forEach((it) => it.classList.add("just"));
+    S.justDone = null;
+  }
+  FX.playSeg();
 }
 
 function go(page) {
   if (!PAGES.hasOwnProperty(page)) return;
+  const nav = $("#nav"), from = nav.querySelector("button.active"), to = nav.querySelector(`[data-page="${page}"]`);
+  if (from !== to) {
+    nav.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === to));
+    FX.pour(nav, from, to);
+  }
   S.page = page;
   $("#main").scrollTop = 0;
   refresh(true);
@@ -612,6 +634,7 @@ function renderEdChoices() {
   }).join("");
   $("#edRemindAll").textContent = ed.remind.length === REMIND_OPTS.length ? "Снять все" : "Выбрать все";
   $("#edMute").classList.toggle("on", ed.mute_work);
+  FX.playSeg();
 }
 
 function edDatePop(which = "start") {
@@ -738,7 +761,7 @@ const closeMenu = () => { $("#ctx").classList.remove("open"); S.ctx = null; };
 
 async function toggleDone(id, date) {
   const state = await api("toggle_done", id, date);
-  if (state) toast(phrase("doneToast"));
+  if (state) { toast(phrase("doneToast")); S.justDone = [id, date]; }
   refresh();
 }
 
@@ -758,13 +781,22 @@ document.addEventListener("click", async (e) => {
   const date = holder?.dataset.date;
 
   if (!act) return go(el.dataset.page);
+  if (el.matches(".seg button") && !el.classList.contains("on")) FX.captureSeg(el);
   switch (act) {
     case "add": return openNew(iso(S.page === "home" || S.page === "calendar" ? S.selected : S.today));
     case "add-day": return openNew(el.dataset.date);
     case "pick": {
       if (el.dataset.date === iso(S.selected) && !el.classList.contains("out")) return openNew(el.dataset.date);
+      const grid = el.closest(".cal, .bigcal"), big = grid.classList.contains("bigcal");
+      const oldDate = grid.querySelector(".sel")?.dataset.date, view = S.view;
       select(el.dataset.date);
-      return refresh();
+      const sameMonth = view.y === S.view.y && view.m === S.view.m;
+      await refresh();
+      if (sameMonth && oldDate) {
+        const g = $(big ? ".bigcal" : ".cal");
+        FX.pour(g, g?.querySelector(`[data-date="${oldDate}"]`), g?.querySelector(".sel"), { fadeOut: big });
+      }
+      return;
     }
     case "prev": case "next": {
       let { y, m } = S.view;
@@ -807,8 +839,8 @@ document.addEventListener("click", async (e) => {
     case "range": S.allRange = el.dataset.v; return refresh();
     case "cat": S.allCat = el.dataset.v; return refresh();
     case "period": S.statsPeriod = el.dataset.v; return refresh();
-    case "theme": return saveSettings({ theme: S.settings.theme === "dark" ? "light" : "dark" });
-    case "set-theme": return saveSettings({ theme: el.dataset.v });
+    case "theme": return FX.theme(el, () => saveSettings({ theme: S.settings.theme === "dark" ? "light" : "dark" }));
+    case "set-theme": return el.classList.contains("on") ? null : FX.theme(el, () => saveSettings({ theme: el.dataset.v }));
     case "set-snooze": return saveSettings({ snooze_minutes: Number(el.dataset.v) });
     case "set-gender": return saveSettings({ gender: el.dataset.v });
     case "set-anim": return saveSettings({ anim_effect: el.dataset.v });

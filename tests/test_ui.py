@@ -193,3 +193,25 @@ def test_month_picker(page):
     page.click("[data-act=mp-month][data-v='0']")
     expect(page.locator(".mbtn")).to_have_text(f"Январь {TODAY.year + 1}")
     expect(page.locator(".mpop")).to_have_count(0)
+
+
+def test_pour_animation_and_off_switch(page):
+    other = (TODAY + timedelta(days=1 if TODAY.day < 25 else -1)).isoformat()
+    page.click(f".cal .day[data-date='{other}']")
+    expect(page.locator(".cal .fx-fill")).to_have_count(1)          # лава наливается в новый день
+    page.click("nav [data-page=settings]")
+    page.click("[data-act=set-anim][data-v=off]")
+    expect(page.locator("body")).to_have_class(re.compile(r"\banim-off\b"))
+    page.click("nav [data-page=home]")
+    expect(page.locator("#nav .fx-fill")).to_have_count(0)          # без анимации — ничего не льётся
+    page.click(f".cal .day[data-date='{TODAY.isoformat()}']")
+    expect(page.locator(".cal .fx-fill")).to_have_count(0)
+
+
+def test_gender_phrases(page):
+    page.click("nav [data-page=settings]")
+    page.click("[data-act=set-gender][data-v=f]")
+    page.click("nav [data-page=home]")
+    item(page, "Тренировка").locator("[data-act=toggle]").click()
+    expect(page.locator(".summary small")).to_have_text("Всё сделано — красотка")
+    expect(page.locator("#heroSub")).to_contain_text("Ты всё сделала")
