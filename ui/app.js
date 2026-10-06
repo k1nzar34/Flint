@@ -583,7 +583,7 @@ async function openEditor(id) {
 }
 
 function openNew(dateStr, kind = "reminder") {
-  const now = new Date();
+  const now = new Date(), asked = dateStr;
   let time = "09:00";
   if (dateStr === iso(S.today) && kind === "reminder") {
     const t = new Date(now.getTime() + 20 * 60000);
@@ -592,7 +592,7 @@ function openNew(dateStr, kind = "reminder") {
     time = `${pad(t.getHours())}:${pad(t.getMinutes())}`;
   }
   showEditor({ id: null, kind, title: "", note: "", date: dateStr, time, repeat: "none", category: "", important: false,
-    birth_year: "", remind: [0, 1], date_end: iso(addDays(parse(dateStr), 6)), mute_work: true });
+    birth_year: "", remind: [0, 1], date_end: iso(addDays(parse(dateStr), 6)), mute_work: true, asked });
 }
 
 function showEditor(ed) {
@@ -869,6 +869,11 @@ document.addEventListener("click", async (e) => {
       return FX.kindSwitch(el.dataset.v, () => {
         S.ed.kind = el.dataset.v;
         if (S.ed.kind === "birthday" && !S.ed.id) $("#edTime").value = "10:00";
+        // поздно вечером напоминание «на сегодня» переезжает на завтра; ДР и отпуск остаются на выбранный день
+        if (!S.ed.id && S.ed.kind !== "reminder" && S.ed.asked && S.ed.date !== S.ed.asked) {
+          S.ed.date_end = iso(addDays(parse(S.ed.asked), 6));
+          setEdDate(S.ed.asked, "start");
+        }
         $("#edError").textContent = "";
         applyKind();
       });
