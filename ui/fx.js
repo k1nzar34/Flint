@@ -210,49 +210,71 @@ const FX = (() => {
     await front.finished.catch(() => {});
   }
 
-  /* ---------- Кораблик по волнам отпуска ---------- */
+  /* ---------- Кораблик по дальней волне отпуска ---------- */
+  // Кораблик живёт внутри каждой плитки отпуска (между дальней и ближней волной) и обрезается её краями,
+  // поэтому плывёт «в море» плиток, а не поверх промежутков. Все копии двигаются по одному общему пути.
+  const boatObs = new WeakMap();
   function boats(grid) {
     if (!grid || !on()) return;
+    build(grid);
+    if (!boatObs.has(grid) && window.ResizeObserver) {
+      let w = grid.offsetWidth, timer = 0;
+      const ro = new ResizeObserver(() => {
+        if (!grid.isConnected) return ro.disconnect();
+        if (grid.offsetWidth === w) return;
+        w = grid.offsetWidth;
+        clearTimeout(timer);
+        timer = setTimeout(() => build(grid), 120);
+      });
+      ro.observe(grid);
+      boatObs.set(grid, ro);
+    }
+  }
+  function build(grid) {
     grid.querySelectorAll(".boat").forEach((b) => b.remove());
+    if (!on()) return;
     const ids = [...new Set([...grid.querySelectorAll(".cell[data-vac]")].map((c) => c.dataset.vac))];
     const gb = grid.getBoundingClientRect();
     ids.forEach((id) => {
-      const cells = [...grid.querySelectorAll(`.cell[data-vac="${id}"]`)];
+      const cells = [...grid.querySelectorAll(`.cell[data-vac="${id}"]`)].map((el) => {
+        const r = el.getBoundingClientRect();
+        return { el, top: Math.round(r.top), left: r.left - gb.left, right: r.right - gb.left };
+      });
       // строки календаря: сегменты по одной неделе
       const rows = [];
       cells.forEach((c) => {
-        const r = c.getBoundingClientRect(), top = Math.round(r.top);
-        const row = rows.find((x) => x.top === top);
-        if (row) { row.left = Math.min(row.left, r.left); row.right = Math.max(row.right, r.right); }
-        else rows.push({ top, left: r.left, right: r.right, bottom: r.bottom });
+        const row = rows.find((x) => x.top === c.top);
+        if (row) { row.left = Math.min(row.left, c.left); row.right = Math.max(row.right, c.right); }
+        else rows.push({ top: c.top, left: c.left, right: c.right });
       });
       rows.sort((a, b) => a.top - b.top);
-      const BW = 24, BH = 20, SPEED = 34; // px/с
-      const segs = rows.map((r) => ({
-        x1: r.left - gb.left + 4, x2: r.right - gb.left - BW - 4, y: r.bottom - gb.top - BH - 7,
-      })).filter((g) => g.x2 > g.x1);
+      const BW = 24, SPEED = 30, FADE = 0.45; // ширина, px/с, с
+      const segs = rows.map((r) => ({ top: r.top, x1: r.left + 6, x2: r.right - BW - 6 })).filter((g) => g.x2 > g.x1);
       if (!segs.length) return;
-      const FADE = 0.45; // с
       const durs = segs.map((g) => (g.x2 - g.x1) / SPEED + FADE * 2);
       const total = durs.reduce((a, b) => a + b, 0);
-      const kf = [];
-      let t = 0;
-      segs.forEach((g, i) => {
-        const d = durs[i], at = (sec) => Math.min(1, (t + sec) / total);
-        const fadeLen = Math.min(SPEED * FADE, (g.x2 - g.x1) / 3);
-        kf.push({ offset: at(0), opacity: 0, transform: `translate(${g.x1}px, ${g.y}px)` });
-        kf.push({ offset: at(FADE), opacity: 1, transform: `translate(${g.x1 + fadeLen}px, ${g.y}px)` });
-        kf.push({ offset: at(d - FADE), opacity: 1, transform: `translate(${g.x2 - fadeLen}px, ${g.y}px)` });
-        kf.push({ offset: at(d), opacity: 0, transform: `translate(${g.x2}px, ${g.y}px)` });
-        t += d;
+      const phase = performance.now() % (total * 1000); // плывёт дальше, а не с начала, после перерисовки
+      cells.forEach((c) => {
+        const sea = c.el.querySelector(".sea");
+        if (!sea) return;
+        const kf = [];
+        let t = 0;
+        segs.forEach((g, i) => {
+          const d = durs[i], at = (sec) => Math.min(1, (t + sec) / total), mine = g.top === c.top;
+          const fadeLen = Math.min(SPEED * FADE, (g.x2 - g.x1) / 3);
+          const pts = [[0, 0, g.x1], [FADE, 1, g.x1 + fadeLen], [d - FADE, 1, g.x2 - fadeLen], [d, 0, g.x2]];
+          pts.forEach(([sec, op, x]) => kf.push({ offset: at(sec), opacity: mine ? op : 0,
+            transform: `translateX(${(mine ? x : g.x1) - c.left}px)` }));
+          t += d;
+        });
+        kf[0].offset = 0; kf[kf.length - 1].offset = 1;
+        const boat = document.createElement("span");
+        boat.className = "boat";
+        boat.innerHTML = '<svg viewBox="0 0 26 22"><use href="#boat"/></svg>';
+        sea.insertBefore(boat, sea.lastElementChild); // между дальней и ближней волной
+        const anim = boat.animate(kf, { duration: total * 1000, iterations: Infinity, easing: "linear" });
+        anim.currentTime = phase;
       });
-      kf[0].offset = 0; kf[kf.length - 1].offset = 1;
-      const boat = document.createElement("i");
-      boat.className = "boat";
-      boat.innerHTML = '<svg viewBox="0 0 26 22"><use href="#boat"/></svg>';
-      grid.appendChild(boat);
-      const anim = boat.animate(kf, { duration: total * 1000, iterations: Infinity, easing: "linear" });
-      anim.currentTime = performance.now() % (total * 1000); // плывёт дальше, а не с начала, после перерисовки
     });
   }
 
