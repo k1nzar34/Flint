@@ -447,3 +447,37 @@ input[type="date"].input, input[type="time"].input { font-variant-numeric: tabul
 .chip svg.i { width: 11px; height: 11px; stroke-width: 2.6; flex-shrink: 0; color: #FF7A1A; }
 
 @media (prefers-reduced-motion: reduce) { .item.hot:not(.done) { animation: none; } }
+
+/* ---------- Кнопка месяца и панель выбора ---------- */
+.mp-anchor { position: relative; }
+.mbtn {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 19px; font-weight: 700; letter-spacing: -0.01em;
+  padding: 4px 8px 4px 10px; margin-left: -10px; border-radius: 11px; transition: background .15s;
+}
+.mbtn svg.i { width: 16px; height: 16px; color: var(--muted); transition: transform .2s; }
+.mbtn:hover { background: var(--hover); }
+.mpop {
+  position: absolute; top: calc(100% + 6px); left: -8px; z-index: 20; width: 372px; padding: 14px;
+  border-radius: 20px; background: var(--card-2); border: 1px solid var(--border-2); box-shadow: 0 22px 60px rgba(0, 0, 0, .5);
+}
+.mpop.enter { animation: mpIn .22s cubic-bezier(.2, .9, .3, 1.1); transform-origin: 30px 0; }
+@keyframes mpIn { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: none; } }
+.mp-year { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.mp-year b { font-size: 17px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.mp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mt {
+  min-height: 60px; padding: 9px 10px 8px; border-radius: 14px; background: var(--card-3); border: 1px solid transparent;
+  text-align: left; display: flex; flex-direction: column; justify-content: space-between; gap: 6px; transition: border-color .15s;
+}
+.mt b { font-size: 13.5px; font-weight: 650; }
+.mt:hover { border-color: var(--border-2); }
+.mt.cur { border-color: var(--accent); }
+.mt.on { background: var(--grad); color: #fff; box-shadow: var(--glow); border-color: transparent; }
+.mks { display: flex; flex-wrap: wrap; gap: 4px; }
+.mk { font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 6px; line-height: 16px; white-space: nowrap; }
+.mk.bd { background: rgba(245, 196, 81, .16); color: #E9B23C; }
+.mk.vc { background: rgba(14, 165, 233, .16); color: #2BA8E8; }
+.mk.fr { background: rgba(255, 122, 26, .15); color: #FF7A1A; }
+.mt.on .mk { background: rgba(255, 255, 255, .2); color: #fff; }
+.mp-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.mp-legend .mk { font-weight: 600; }

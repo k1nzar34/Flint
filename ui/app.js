@@ -34,7 +34,7 @@ const S = {
   page: "home", today: null, selected: null, view: null,
   allRange: "week", allCat: "", statsPeriod: "week",
   settings: {}, categories: {}, repeats: {}, canAutostart: false, todayItems: [],
-  ed: null, ctx: null,
+  ed: null, ctx: null, mp: null, slide: 0,
 };
 
 /* ===================== Утилиты ===================== */
@@ -128,7 +128,7 @@ function monthGrid(y, m, rowsMin = 0) {
 
 function calHead() {
   const { y, m } = S.view;
-  return `<div class="card-head"><h3>${MONTHS[m]} ${y}</h3><div class="spacer"></div>
+  return `<div class="card-head mp-anchor"><button class="mbtn" data-act="mp-open" title="Выбрать месяц и год">${MONTHS[m]} ${y}${icon("down")}</button><div class="spacer"></div>
     <div class="cal-nav">
       <button class="icon-btn" data-act="prev" title="Предыдущий месяц">${icon("left")}</button>
       <button class="icon-btn" data-act="next" title="Следующий месяц">${icon("right")}</button>
@@ -156,6 +156,37 @@ function ringSvg(pct, id) {
     <circle cx="50" cy="50" r="${r}" fill="none" stroke="var(--card-3)" stroke-width="10"/>
     <circle cx="50" cy="50" r="${r}" fill="none" stroke="url(#${id})" stroke-width="10" stroke-linecap="round"
       stroke-dasharray="${c}" stroke-dashoffset="${pct ? off : c}"/></svg>`;
+}
+
+/* ===================== Панель выбора месяца ===================== */
+async function openMonthPicker(anchor, year) {
+  S.mp = { year, anchor };
+  const over = await api("year_overview", year);
+  if (!S.mp || S.mp.year !== year) return;
+  const cur = S.today;
+  const tiles = MONTHS.map((name, i) => {
+    const o = over[i], marks = [];
+    if (o.bdays) marks.push(`<span class="mk bd">🎂 ${o.bdays}</span>`);
+    if (o.vacation) marks.push(`<span class="mk vc">🏖</span>`);
+    if (o.hot) marks.push(`<span class="mk fr">🔥 ${o.hot}</span>`);
+    const cls = ["mt", year === S.view.y && i === S.view.m ? "on" : "",
+      year === cur.getFullYear() && i === cur.getMonth() ? "cur" : ""].join(" ");
+    return `<button class="${cls}" data-act="mp-month" data-v="${i}"><b>${name}</b>${marks.length ? `<span class="mks">${marks.join("")}</span>` : ""}</button>`;
+  }).join("");
+  let pop = anchor.querySelector(".mpop");
+  const fresh = !pop;
+  if (fresh) { pop = document.createElement("div"); pop.className = "mpop"; anchor.appendChild(pop); }
+  pop.innerHTML = `<div class="mp-year">
+      <button class="icon-btn" data-act="mp-year" data-v="-1" title="Предыдущий год">${icon("left")}</button>
+      <b>${year}</b>
+      <button class="icon-btn" data-act="mp-year" data-v="1" title="Следующий год">${icon("right")}</button></div>
+    <div class="mp-grid">${tiles}</div>
+    <div class="mp-legend"><span class="mk bd">🎂 дни рождения</span><span class="mk vc">🏖 отпуск</span><span class="mk fr">🔥 приоритеты</span></div>`;
+  if (fresh) pop.classList.add("enter");
+}
+function closeMonthPicker() {
+  document.querySelectorAll(".mpop").forEach((p) => p.remove());
+  S.mp = null;
 }
 
 /* ===================== Страницы ===================== */
@@ -382,6 +413,7 @@ async function refresh(animate = false) {
   if (seq !== renderSeq) return; // пришёл более свежий рендер
   renderChrome();
   const page = $("#page");
+  S.mp = null;
   page.innerHTML = html;
   if (animate) { page.style.animation = "none"; void page.offsetWidth; page.style.animation = ""; }
 }
@@ -529,6 +561,7 @@ async function toggleDone(id, date) {
 document.addEventListener("click", async (e) => {
   const el = e.target.closest("[data-act], [data-page]");
   if (!e.target.closest("#ctx")) closeMenu();
+  if (S.mp && !e.target.closest(".mpop") && !e.target.closest("[data-act=mp-open]")) closeMonthPicker();
   if (S.ed && !e.target.closest(".datefield")) $("#edDatePop").classList.remove("open");
   if (!el) {
     if (e.target === $("#overlay")) closeEditor();
@@ -552,10 +585,23 @@ document.addEventListener("click", async (e) => {
       let { y, m } = S.view;
       m += act === "next" ? 1 : -1;
       if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; }
+      S.slide = act === "next" ? 1 : -1;
       S.view = { y, m };
       return refresh();
     }
     case "today": select(iso(S.today)); return refresh();
+    case "mp-open": {
+      if (S.mp) return closeMonthPicker();
+      return openMonthPicker(el.closest(".mp-anchor"), S.view.y);
+    }
+    case "mp-year": return openMonthPicker(S.mp.anchor, S.mp.year + Number(el.dataset.v));
+    case "mp-month": {
+      const y = S.mp.year, m = Number(el.dataset.v);
+      closeMonthPicker();
+      S.slide = (y * 12 + m) - (S.view.y * 12 + S.view.m);
+      S.view = { y, m };
+      return refresh();
+    }
     case "toggle": return toggleDone(id, date);
     case "edit": return openEditor(id);
     case "menu": e.stopPropagation(); return openMenu(el);
@@ -649,7 +695,7 @@ $("#edTime").addEventListener("input", (e) => {
 $("#main").addEventListener("scroll", () => { if (S.ctx && Date.now() - S.ctx.opened > 200) closeMenu(); });
 
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { closeMenu(); if (S.ed) closeEditor(); }
+  if (e.key === "Escape") { closeMenu(); closeMonthPicker(); if (S.ed) closeEditor(); }
   if (S.ed && e.key === "Enter" && (e.ctrlKey || e.target.id === "edTitle")) { e.preventDefault(); saveEditor(); }
   if (!S.ed && e.ctrlKey && e.key.toLowerCase() === "n") { e.preventDefault(); openNew(iso(S.selected)); }
 });
