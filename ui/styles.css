@@ -364,6 +364,7 @@ input[type="date"].input, input[type="time"].input { font-variant-numeric: tabul
 .presets button:hover { filter: brightness(1.2); }
 .seg.full { display: flex; }
 .seg.full button { flex: 1; padding: 9px 6px; }
+.seg.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
 .form-error { color: var(--danger); font-size: 13px; min-height: 18px; font-weight: 550; }
 .modal-actions { display: flex; gap: 10px; align-items: center; }
 .modal-actions .btn-primary { flex: 1; }

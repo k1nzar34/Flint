@@ -3,7 +3,7 @@ import sys
 import threading
 from datetime import date, datetime
 
-from core import CATEGORIES, DFMT, REPEATS, Store, ValidationError
+from core import CATEGORIES, DFMT, REPEATS, Store, ValidationError, kind_of, next_birthday
 
 store = Store()
 lock = threading.RLock()
@@ -47,6 +47,18 @@ class Api:
         with lock:
             return store.month_hot(int(year), int(month))
 
+    def month_info(self, year, month):
+        with lock:
+            return store.month_info(int(year), int(month))
+
+    def year_overview(self, year):
+        with lock:
+            return store.year_overview(int(year))
+
+    def vacations(self, d1, d2):
+        with lock:
+            return store.vacations_between(_d(d1), _d(d2))
+
     def range(self, d1, d2):
         with lock:
             return store.items_between(_d(d1), _d(d2), datetime.now())
@@ -61,13 +73,21 @@ class Api:
             if not r:
                 return None
             date_s, time_s = r["start"].split(" ")
-            return {**r, "date": date_s, "time": time_s}
+            out = {**r, "kind": kind_of(r), "date": date_s, "time": time_s}
+            if out["kind"] == "birthday":
+                out["date"] = next_birthday(r, date.today()).strftime(DFMT)
+            elif out["kind"] == "vacation":
+                out["date_end"] = r["end"]
+            return out
 
     def save(self, payload):
         with lock:
             try:
                 r = store.upsert(payload, datetime.now())
-                return {"ok": True, "id": r["id"], "date": r["start"][:10]}
+                day = r["start"][:10]
+                if kind_of(r) == "birthday":
+                    day = next_birthday(r, date.today()).strftime(DFMT)
+                return {"ok": True, "id": r["id"], "date": day, "kind": kind_of(r)}
             except ValidationError as e:
                 return {"error": str(e)}
 
