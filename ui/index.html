@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flint</title>
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-theme="dark">
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="calendar" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="17" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></symbol>
+  <symbol id="bell" viewBox="0 0 24 24"><path d="M6 8.5a6 6 0 1 1 12 0c0 6.5 2.5 8.5 2.5 8.5h-17S6 15 6 8.5"/><path d="M10.2 20.5a2 2 0 0 0 3.6 0"/></symbol>
+  <symbol id="chart" viewBox="0 0 24 24"><path d="M5 20v-7M12 20V5M19 20v-11M3 20.5h18"/></symbol>
+  <symbol id="sliders" viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+  <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="dots" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="12" cy="19" r="1.3"/></symbol>
+  <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></symbol>
+  <symbol id="flame" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></symbol>
+  <symbol id="x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></symbol>
+  <symbol id="edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/></symbol>
+  <symbol id="target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></symbol>
+  <symbol id="repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="m7 22-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></symbol>
+  <symbol id="moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+  <symbol id="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="power" viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M6.4 6.4a8 8 0 1 0 11.2 0"/></symbol>
+  <symbol id="user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="volume" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></symbol>
+  <symbol id="snooze" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M5 3 2 6M19 3l3 3"/></symbol>
+  <symbol id="rocket" viewBox="0 0 24 24"><path d="M5 15c-1.5 1.3-2 5-2 5s3.7-.5 5-2"/><path d="M9 15 6 12c1-4 4-8.5 13-9-.5 9-5 12-9 13z"/><circle cx="14.5" cy="9.5" r="1.5"/></symbol>
+  <symbol id="miss" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5M12 16h.01"/></symbol>
+  <symbol id="okc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></symbol>
+  <symbol id="cat-work" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8.5 7V5.5a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2V7M3 13h18"/></symbol>
+  <symbol id="cat-health" viewBox="0 0 24 24"><path d="M3 12h4l3-7 4 14 3-7h4"/></symbol>
+  <symbol id="cat-personal" viewBox="0 0 24 24"><path d="M12 20s-7-4.3-9-9C1.7 7.5 3.9 4 7.3 4c2 0 3.6 1.1 4.7 2.8C13.1 5.1 14.7 4 16.7 4c3.4 0 5.6 3.5 4.3 7-2 4.7-9 9-9 9z"/></symbol>
+  <symbol id="cat-home" viewBox="0 0 24 24"><path d="M2.5 3.5h3l2.2 11h11l2-8H6.6"/><circle cx="9" cy="19" r="1.5"/><circle cx="17.5" cy="19" r="1.5"/></symbol>
+  <symbol id="cat-growth" viewBox="0 0 24 24"><path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/></symbol>
+</svg>
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="logo"><img src="logo.svg" alt="Flint"></div>
+    <h1>Flint</h1>
+    <p>Маленькая искра.<br>Большие цели.</p>
+  </div>
+  <nav class="nav" id="nav">
+    <button data-page="home"><svg class="i"><use href="#home"/></svg>Главная</button>
+    <button data-page="calendar"><svg class="i"><use href="#calendar"/></svg>Календарь</button>
+    <button data-page="all"><svg class="i"><use href="#bell"/></svg>Все напоминания</button>
+    <button data-page="stats"><svg class="i"><use href="#chart"/></svg>Статистика</button>
+    <button data-page="settings"><svg class="i"><use href="#sliders"/></svg>Настройки</button>
+  </nav>
+  <div class="side-bottom">
+    <div class="progress-card">
+      <div class="label">Сегодня</div>
+      <div class="value" id="sideValue">—</div>
+      <div class="bar"><i id="sideBar" style="width:0"></i></div>
+    </div>
+    <div class="side-actions">
+      <button data-act="theme" id="themeBtn"><svg class="i"><use href="#moon"/></svg><span>Тема</span></button>
+      <button data-act="quit"><svg class="i"><use href="#power"/></svg>Выход</button>
+    </div>
+  </div>
+</aside>
+
+<main class="main" id="main">
+  <header class="hero">
+    <svg class="bg" viewBox="0 0 1200 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#141A44"/>
+          <stop offset=".3" stop-color="#33306E"/>
+          <stop offset=".52" stop-color="#8A5689"/>
+          <stop offset=".7" stop-color="#F0956B"/>
+          <stop offset="1" stop-color="#FFC48A"/>
+        </linearGradient>
+        <radialGradient id="sunglow" cx="0.74" cy="0.62" r="0.38">
+          <stop offset="0" stop-color="#FFC58A" stop-opacity=".9"/>
+          <stop offset=".35" stop-color="#F08A6A" stop-opacity=".35"/>
+          <stop offset="1" stop-color="#F08A6A" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="mist" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#C98AB0" stop-opacity="0"/>
+          <stop offset="1" stop-color="#C98AB0" stop-opacity=".35"/>
+        </linearGradient>
+      </defs>
+      <rect width="1200" height="220" fill="url(#sky)"/>
+      <rect width="1200" height="220" fill="url(#sunglow)"/>
+      <g fill="#fff" opacity=".7">
+        <circle cx="610" cy="26" r="1"/><circle cx="700" cy="52" r=".8"/><circle cx="820" cy="20" r="1.2"/>
+        <circle cx="905" cy="44" r=".8"/><circle cx="1010" cy="18" r="1"/><circle cx="1110" cy="40" r=".9"/>
+        <circle cx="760" cy="80" r=".7"/><circle cx="1160" cy="70" r=".8"/><circle cx="530" cy="60" r=".7"/>
+      </g>
+      <path fill="#6A4F8E" opacity=".55" d="M0 150 80 112l60 18 80-50 80 45 80-30 80 40 100-65 80 50 80-30 100 40 80-70 80 55 80-30 80 35 60-20V220H0Z"/>
+      <path fill="#3A2F68" d="M0 168 100 128l70 25 90-45 90 55 100-45 90 50 100-55 100 50 100-40 90 50 90-45 90 40 90-35V220H0Z"/>
+      <path fill="url(#mist)" d="M0 150h1200v70H0z"/>
+      <path fill="#1C1A42" d="M0 190 90 160l90 22 110-40 120 48 110-32 130 42 120-45 110 38 110-30 120 40 90-20V220H0Z"/>
+      <path fill="#0D0E26" d="M0 220v-14l140-24 120 26 150-30 160 34 140-24 150 28 130-22 110 18 100-12v20Z"/>
+    </svg>
+    <div>
+      <h2 id="heroTitle">Привет 👋</h2>
+      <p id="heroSub"></p>
+    </div>
+    <div class="hero-right">
+      <div class="date-chip">
+        <svg class="i"><use href="#calendar"/></svg>
+        <div><b id="chipDate"></b><small id="chipSub"></small></div>
+      </div>
+      <button class="btn btn-primary" data-act="add"><svg class="i"><use href="#plus"/></svg>Добавить</button>
+    </div>
+  </header>
+  <section id="page" class="page"></section>
+</main>
+
+<div class="overlay" id="overlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-top">
+      <span id="edMode">Новое напоминание</span>
+      <button class="icon-btn" data-act="close-editor" title="Закрыть (Esc)"><svg class="i"><use href="#x"/></svg></button>
+    </div>
+    <div class="modal-head">
+      <div class="dateblock"><b id="edDay">8</b><small id="edMon">окт</small></div>
+      <div style="flex:1;min-width:0">
+        <input class="title-input" id="edTitle" maxlength="200" placeholder="Что напомнить?">
+        <div class="when"><svg class="i"><use href="#clock"/></svg><span id="edWhen"></span></div>
+      </div>
+    </div>
+    <div class="form">
+      <div class="field">
+        <label>Описание</label>
+        <textarea class="input" id="edNote" placeholder="Детали, ссылки, что не забыть…" maxlength="2000"></textarea>
+      </div>
+      <div class="row2">
+        <div class="field datefield"><label>Дата</label>
+          <button class="input datebtn" data-act="ed-datepick"><svg class="i"><use href="#calendar"/></svg><span id="edDateText"></span></button>
+          <div class="datepop" id="edDatePop"></div></div>
+        <div class="field"><label>Время</label>
+          <input class="input" id="edTime" inputmode="numeric" maxlength="5" placeholder="ЧЧ:ММ" autocomplete="off"></div>
+      </div>
+      <div class="presets" id="edPresets"></div>
+      <div class="field"><label>Категория</label><div class="filters" id="edCats" style="margin:0"></div></div>
+      <div class="field"><label>Повтор</label><div class="seg full" id="edRepeat"></div></div>
+      <div class="form-error" id="edError"></div>
+      <div class="modal-actions">
+        <button class="btn btn-danger" data-act="ed-delete" id="edDelete"><svg class="i"><use href="#trash"/></svg>Удалить</button>
+        <button class="btn btn-primary btn-lg" data-act="ed-save">Сохранить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ctx" id="ctx"></div>
+<div class="toast" id="toast"><svg class="i"><use href="#okc"/></svg><span></span></div>
+
+<script src="app.js"></script>
+</body>
+</html>
