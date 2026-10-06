@@ -298,9 +298,12 @@ class Store:
                                     + timedelta(minutes=minutes))
             self.save()
 
+    CHOICES = {"gender": ("m", "f", "n"), "theme": ("dark", "light"),
+               "anim_effect": ("lava", "plain", "off"), "anim_speed": ("fast", "normal", "slow")}
+
     def update_settings(self, values):
         for k, v in values.items():
-            if k in DEFAULT_SETTINGS:
+            if k in DEFAULT_SETTINGS and v in self.CHOICES.get(k, (v,)):
                 self.settings[k] = v
         self.save()
 

@@ -435,6 +435,9 @@ function renderSettings() {
       <div class="setting"><span class="ic">${icon("user")}</span>
         <div class="txt"><b>Как тебя зовут</b><small>Для приветствия на главной</small></div>
         <input class="input" id="setName" style="width:170px" maxlength="30" value="${esc(st.name)}"></div>
+      <div class="setting"><span class="ic">${icon("chat")}</span>
+        <div class="txt"><b>Обращение</b><small>Как приложение говорит с тобой: «сделал» или «сделала»</small></div>
+        ${seg("set-gender", [["m", "Мужское"], ["f", "Женское"], ["n", "Нейтральное"]], st.gender || "m")}</div>
       <div class="setting"><span class="ic">${icon(st.theme === "dark" ? "moon" : "sun")}</span>
         <div class="txt"><b>Тема</b><small>Можно переключать и кнопкой в меню</small></div>
         ${seg("set-theme", [["dark", "Тёмная"], ["light", "Светлая"]], st.theme)}</div>
@@ -450,10 +453,25 @@ function renderSettings() {
         <small>${S.canAutostart ? "Чтобы напоминания работали всегда" : "Доступно в собранной exe-версии"}</small></div>
         ${sw("autostart", st.autostart, !S.canAutostart)}</div>
     </div>
+    <div class="card"><div class="card-head"><h3>Анимации</h3></div>
+      <div class="setting"><span class="ic">${icon("flame")}</span>
+        <div class="txt"><b>Эффект</b><small>${REDUCED ? "В Windows выключены анимации — Flint тоже показывает всё статично" : "Как подсветка переливается между пунктами"}</small></div>
+        ${seg("set-anim", [["lava", "🔥 Лава"], ["plain", "Без лавы"], ["off", "Выключены"]], st.anim_effect || "lava")}</div>
+      <div class="setting"><span class="ic">${icon("clock")}</span>
+        <div class="txt"><b>Скорость</b><small>Сколько длится переливание</small></div>
+        ${seg("set-speed", [["fast", "Быстро"], ["normal", "Обычно"], ["slow", "Медленно"]], st.anim_speed || "normal")}</div>
+    </div>
   </div>`;
 }
 
 /* ===================== Обновление ===================== */
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function applyAnim() {
+  S.anim = REDUCED ? "off" : (S.settings.anim_effect || "lava");
+  S.speed = { fast: 300, normal: 450, slow: 800 }[S.settings.anim_speed] || 450;
+  document.body.classList.toggle("anim-off", S.anim === "off");
+}
+
 function applyTheme() {
   document.body.dataset.theme = S.settings.theme;
   $("#themeBtn").innerHTML = `${icon(S.settings.theme === "dark" ? "sun" : "moon")}<span>${S.settings.theme === "dark" ? "Светлая" : "Тёмная"}</span>`;
@@ -792,6 +810,9 @@ document.addEventListener("click", async (e) => {
     case "theme": return saveSettings({ theme: S.settings.theme === "dark" ? "light" : "dark" });
     case "set-theme": return saveSettings({ theme: el.dataset.v });
     case "set-snooze": return saveSettings({ snooze_minutes: Number(el.dataset.v) });
+    case "set-gender": return saveSettings({ gender: el.dataset.v });
+    case "set-anim": return saveSettings({ anim_effect: el.dataset.v });
+    case "set-speed": return saveSettings({ anim_speed: el.dataset.v });
     case "switch": return saveSettings({ [el.dataset.key]: !S.settings[el.dataset.key] });
     case "quit": return api("quit");
     // редактор
@@ -867,7 +888,8 @@ document.addEventListener("click", async (e) => {
 async function saveSettings(values) {
   S.settings = await api("save_settings", values);
   applyTheme();
-  refresh();
+  applyAnim();
+  return refresh();
 }
 
 document.addEventListener("change", (e) => {
@@ -906,6 +928,7 @@ window.app = { refresh: () => refresh(), openEditor, go };
   S.canAutostart = info.canAutostart;
   select(info.today);
   applyTheme();
+  applyAnim();
   const start = new URLSearchParams(location.search).get("page");
   if (start && PAGES.hasOwnProperty(start)) S.page = start;
   await refresh();

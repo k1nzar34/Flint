@@ -308,3 +308,10 @@ def test_year_overview(store):
     assert y[10]["bdays"] == 2 and y[11]["vacation"] and not y[0]["vacation"]
     assert y[9]["hot"] == 1 and y[10]["hot"] == 0
     assert store.year_overview(2027)[0]["vacation"]
+
+
+def test_settings_choices_validated(store):
+    store.update_settings({"gender": "f", "anim_effect": "plain", "anim_speed": "slow"})
+    assert (store.settings["gender"], store.settings["anim_effect"], store.settings["anim_speed"]) == ("f", "plain", "slow")
+    store.update_settings({"gender": "x", "anim_effect": "boom", "theme": "pink"})
+    assert store.settings["gender"] == "f" and store.settings["anim_effect"] == "plain" and store.settings["theme"] == "dark"
