@@ -32,6 +32,8 @@ CATEGORIES = {
     "growth": "Развитие",
 }
 KINDS = ("reminder", "birthday", "vacation")
+MONTHS_GEN = ["января", "февраля", "марта", "апреля", "мая", "июня",
+              "июля", "августа", "сентября", "октября", "ноября", "декабря"]
 BIRTHDAY_OFFSETS = (0, 1, 7)       # в сам день, за день, за неделю
 BIRTHDAY_BASE_YEAR = 2000          # високосный — чтобы хранить и 29 февраля
 DEFAULT_SETTINGS = {
@@ -123,6 +125,21 @@ def next_birthday(r, today):
 def age_on(r, d):
     by = r.get("birth_year")
     return d.year - by if by else None
+
+
+def popup_info(r, day_str, offset, settings, today):
+    """Данные для всплывающего уведомления (общие для приложения и dev-сервера)."""
+    d = date.fromisoformat(day_str)
+    label = "Сегодня" if d == today else f"{d.day} {MONTHS_GEN[d.month - 1]}"
+    info = {"kind": kind_of(r), "title": r["title"], "note": r.get("note", ""), "day": day_str,
+            "time": r["start"][11:], "category": r.get("category", ""), "important": r.get("important", False),
+            "theme": settings["theme"], "snooze": settings["snooze_minutes"]}
+    if info["kind"] == "birthday":
+        lead = {0: "Сегодня", 1: "Завтра", 7: "Через неделю"}.get(offset, "Скоро")
+        info.update(when=f"{lead} · {d.day} {MONTHS_GEN[d.month - 1]}", age=age_on(r, d), offset=offset)
+    else:
+        info["when"] = f"{label} · {r['start'][11:]}"
+    return info
 
 
 def period_bounds(period, today):

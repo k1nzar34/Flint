@@ -481,3 +481,149 @@ input[type="date"].input, input[type="time"].input { font-variant-numeric: tabul
 .mt.on .mk { background: rgba(255, 255, 255, .2); color: #fff; }
 .mp-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
 .mp-legend .mk { font-weight: 600; }
+
+/* ---------- Типы записей: цвета ---------- */
+:root {
+  --gold: #F5C451;
+  --gold-2: #E39A2C;
+  --gold-grad: linear-gradient(135deg, #FFD978 0%, #E39A2C 100%);
+  --gold-ink: #2A1A00;
+  --gold-soft: rgba(245, 196, 81, .15);
+  --sea: #0EA5E9;
+  --sea-grad: linear-gradient(160deg, #38BDF8 0%, #0EA5E9 45%, #2563EB 100%);
+  --sea-soft: rgba(14, 165, 233, .16);
+}
+[data-theme="light"] { --gold-soft: rgba(227, 154, 44, .14); --sea-soft: rgba(14, 165, 233, .12); }
+
+[hidden] { display: none !important; }
+.kind-tabs { margin: -4px 0 18px; }
+.kind-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.kind-tabs button svg.i { width: 16px; height: 16px; }
+.modal[data-kind="birthday"] .kind-tabs button.on { background: var(--gold-grad); color: var(--gold-ink); box-shadow: 0 6px 18px rgba(245, 196, 81, .3); }
+.modal[data-kind="vacation"] .kind-tabs button.on { background: var(--sea-grad); box-shadow: 0 6px 18px rgba(14, 165, 233, .3); }
+.modal[data-kind="birthday"] .modal-head .dateblock { background: var(--gold-grad); color: var(--gold-ink); box-shadow: 0 8px 22px rgba(245, 196, 81, .35); }
+.modal[data-kind="birthday"] .modal-head .dateblock small { color: rgba(42, 26, 0, .7); }
+.modal[data-kind="vacation"] .modal-head .dateblock { background: var(--sea-grad); box-shadow: 0 8px 22px rgba(14, 165, 233, .35); }
+.modal[data-kind="birthday"] .btn-primary { background: var(--gold-grad); color: var(--gold-ink); box-shadow: 0 8px 22px rgba(245, 196, 81, .3); }
+.modal[data-kind="vacation"] .btn-primary { background: var(--sea-grad); box-shadow: 0 8px 22px rgba(14, 165, 233, .3); }
+.modal[data-kind="birthday"] .presets button { background: var(--gold-soft); color: var(--gold-2); }
+.modal[data-kind="birthday"] .input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
+.modal[data-kind="vacation"] .input:focus { border-color: var(--sea); box-shadow: 0 0 0 3px var(--sea-soft); }
+.opt { font-weight: 500; color: var(--faint); }
+.hint { font-size: 12.5px; min-height: 16px; }
+.hint.gold, .link.gold { color: var(--gold-2); }
+[data-theme="dark"] .hint.gold, [data-theme="dark"] .link.gold { color: var(--gold); }
+.label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.link { font-size: 12px; font-weight: 650; }
+.link:hover { text-decoration: underline; }
+
+.checks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ck, .checkrow {
+  display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 14px; text-align: left;
+  border: 1px solid var(--border-2); background: var(--card-3); transition: border-color .15s, background .15s;
+}
+.ck b, .checkrow b { display: block; font-size: 13px; font-weight: 620; }
+.ck small, .checkrow small { display: block; font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+.cb { width: 20px; height: 20px; border-radius: 7px; border: 2px solid var(--faint); flex-shrink: 0; display: grid; place-items: center; color: transparent; transition: all .15s; }
+.cb svg.i { width: 13px; height: 13px; stroke-width: 3.2; }
+.ck.on { border-color: var(--gold); background: var(--gold-soft); }
+.ck.on .cb { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); }
+.checkrow { width: 100%; }
+.checkrow.on { border-color: var(--sea); background: var(--sea-soft); }
+.checkrow.on .cb { background: var(--sea); border-color: var(--sea); color: #fff; }
+.datepop .day.range { background: var(--sea-soft); border-radius: 8px; }
+.modal[data-kind="vacation"] .datepop .day.sel { background: var(--sea-grad); box-shadow: 0 6px 16px rgba(14, 165, 233, .35); }
+.modal[data-kind="birthday"] .datepop .day.sel { background: var(--gold-grad); color: var(--gold-ink); box-shadow: 0 6px 16px rgba(245, 196, 81, .35); }
+
+.confetto { position: fixed; z-index: 80; width: 7px; height: 11px; border-radius: 2px; pointer-events: none; }
+
+/* ---------- День рождения в списках ---------- */
+.item.bday { border-color: rgba(245, 196, 81, .45); background: linear-gradient(100deg, var(--gold-soft), var(--card-3) 55%); }
+.bday-ic { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
+  background: var(--gold-grad); color: var(--gold-ink); box-shadow: 0 4px 12px rgba(245, 196, 81, .35); }
+.bday-ic svg.i { width: 15px; height: 15px; stroke-width: 2.2; }
+.tag.gold { --c: var(--gold-2); }
+[data-theme="dark"] .tag.gold { --c: var(--gold); }
+.dateblock.gold { background: var(--gold-soft); }
+.dateblock.gold.today { background: var(--gold-grad); color: var(--gold-ink); }
+.dateblock.gold.today small { color: rgba(42, 26, 0, .7); }
+
+/* ---------- Баннер отпуска ---------- */
+.vac-banner {
+  position: relative; overflow: hidden; display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  padding: 14px 16px 22px; border-radius: 18px; color: #fff; background: var(--sea-grad);
+  box-shadow: 0 8px 24px -10px rgba(14, 165, 233, .6);
+}
+.vac-banner .vb-ic { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: rgba(255, 255, 255, .2); z-index: 1; }
+.vac-banner .vb-txt { z-index: 1; }
+.vac-banner b { display: block; font-size: 15px; font-weight: 650; }
+.vac-banner small { font-size: 12px; color: rgba(255, 255, 255, .85); }
+
+/* волны — общие для баннера и плиток календаря */
+.waves, .sea { position: absolute; left: 0; right: 0; bottom: 0; pointer-events: none; }
+.waves { height: 18px; }
+.waves i, .sea i {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 100%;
+  background-repeat: repeat-x; background-size: 60px 100%;
+  animation: waveMove 6s linear infinite;
+}
+.waves i:first-child, .sea i:first-child {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 10 Q15 4 30 10 T60 10 V20 H0Z' fill='%23ffffff' fill-opacity='.22'/%3E%3C/svg%3E");
+}
+.waves i:last-child, .sea i:last-child {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 13 Q15 18 30 13 T60 13 V20 H0Z' fill='%23ffffff' fill-opacity='.3'/%3E%3C/svg%3E");
+  animation-duration: 4.2s; animation-direction: reverse;
+}
+@keyframes waveMove { from { background-position-x: 0; } to { background-position-x: 60px; } }
+
+/* ---------- Мини-календарь: день рождения и отпуск ---------- */
+.day .num { position: relative; z-index: 1; }
+.day.bday:not(.sel) { background: var(--gold-grad); color: var(--gold-ink); font-weight: 750; box-shadow: 0 4px 12px rgba(245, 196, 81, .3); }
+.day.bday.today:not(.sel) { box-shadow: inset 0 0 0 2px var(--accent), 0 4px 12px rgba(245, 196, 81, .3); }
+.day .cake { position: absolute; top: -5px; right: -3px; font-size: 12px; z-index: 2; pointer-events: none; }
+.day.bday .dot { display: none; }
+.day.vac::before {
+  content: ""; position: absolute; top: 5px; bottom: 5px; left: -2px; right: -2px; z-index: 0;
+  background: var(--sea-soft); border-top: 1px solid rgba(14, 165, 233, .35); border-bottom: 1px solid rgba(14, 165, 233, .35);
+}
+.day.vac.vs::before { left: 3px; border-left: 1px solid rgba(14, 165, 233, .35); border-radius: 11px 0 0 11px; }
+.day.vac.ve::before { right: 3px; border-right: 1px solid rgba(14, 165, 233, .35); border-radius: 0 11px 11px 0; }
+.day.vac.vs.ve::before { border-radius: 11px; }
+.day.vac:not(.sel):not(.bday):not(.hot) { color: var(--sea); font-weight: 650; }
+[data-theme="dark"] .day.vac:not(.sel):not(.bday):not(.hot) { color: #7DD3FC; }
+
+/* ---------- Большой календарь: день рождения ---------- */
+.cell { position: relative; }
+.cell .n, .cell .chip, .cell .more-n { position: relative; z-index: 1; }
+.cell.bday { border-color: rgba(245, 196, 81, .5); background: linear-gradient(180deg, var(--gold-soft), var(--card-3) 65%); }
+.cell.bday:not(.hot) .n { background: var(--gold-grad); color: var(--gold-ink); box-shadow: 0 4px 12px rgba(245, 196, 81, .35); }
+.cell.bday.sel { border-color: var(--accent); }
+.cell .cake { position: absolute; top: 8px; right: 9px; font-size: 15px; z-index: 1; }
+.chip.gold { --c: var(--gold); font-weight: 600; }
+.confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.confetti i { position: absolute; top: -8px; width: 4px; height: 7px; border-radius: 1px; opacity: .8; animation: confFall 4.5s linear infinite; }
+.confetti i:nth-child(1) { left: 34%; background: #FF5C8A; animation-delay: -.4s; }
+.confetti i:nth-child(2) { left: 48%; background: #5E6BFF; animation-delay: -1.7s; animation-duration: 5.2s; }
+.confetti i:nth-child(3) { left: 60%; background: #35D49A; animation-delay: -3.1s; }
+.confetti i:nth-child(4) { left: 72%; background: #F5C451; animation-delay: -2.2s; animation-duration: 3.9s; }
+.confetti i:nth-child(5) { left: 84%; background: #FF7A1A; animation-delay: -.9s; animation-duration: 5.6s; }
+.confetti i:nth-child(6) { left: 24%; background: #A27BFF; animation-delay: -3.8s; animation-duration: 4.8s; }
+@keyframes confFall {
+  0% { transform: translateY(0) rotate(0); opacity: 0; }
+  10% { opacity: .85; }
+  90% { opacity: .85; }
+  100% { transform: translateY(110px) rotate(360deg); opacity: 0; }
+}
+
+/* ---------- Большой календарь: отпуск ---------- */
+.cell.vac { background: linear-gradient(180deg, rgba(56, 189, 248, .22), rgba(37, 99, 235, .32)); border-color: rgba(14, 165, 233, .35); }
+[data-theme="light"] .cell.vac { background: linear-gradient(180deg, rgba(56, 189, 248, .16), rgba(37, 99, 235, .2)); }
+.cell.vac.sel { border-color: var(--accent); }
+.cell .sea { height: 22px; }
+.cell .sea i:first-child { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 10 Q15 4 30 10 T60 10 V20 H0Z' fill='%2338BDF8' fill-opacity='.45'/%3E%3C/svg%3E"); }
+.cell .sea i:last-child { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 13 Q15 18 30 13 T60 13 V20 H0Z' fill='%232563EB' fill-opacity='.55'/%3E%3C/svg%3E"); }
+.vac-label { position: absolute; left: 8px; bottom: 5px; z-index: 2; font-size: 11px; font-weight: 650; color: #fff;
+  text-shadow: 0 1px 3px rgba(10, 40, 90, .6); white-space: nowrap; max-width: calc(100% - 12px); overflow: hidden; text-overflow: ellipsis; }
+.chip.gold { white-space: normal; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.cell.bday .cake { font-size: 13px; top: 9px; right: 8px; }
+#edDatePopEnd { left: auto; right: 0; }

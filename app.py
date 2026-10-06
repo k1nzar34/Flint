@@ -11,6 +11,7 @@ from datetime import datetime
 import webview
 
 from api import Api, lock, store
+from core import popup_info
 
 try:
     import winsound
@@ -33,8 +34,8 @@ class MainApi(Api):
 class PopupApi:
     """Отдельный API для каждого всплывающего окна — знает, о каком напоминании оно."""
 
-    def __init__(self, rid, day):
-        self._rid, self._day = rid, day
+    def __init__(self, rid, day, offset=0):
+        self._rid, self._day, self._offset = rid, day, offset
         self._window = None
 
     def info(self):
@@ -42,13 +43,7 @@ class PopupApi:
             r = store.find(self._rid)
             if not r:
                 return None
-            d = datetime.strptime(self._day, "%Y-%m-%d").date()
-            label = "Сегодня" if d == datetime.now().date() else f"{d.day} {MONTHS_GEN[d.month - 1]}"
-            return {"title": r["title"], "note": r.get("note", ""),
-                    "when": f"{label} · {r['start'][11:]}", "time": r["start"][11:],
-                    "day": self._day, "category": r.get("category", ""),
-                    "important": r.get("important", False), "theme": store.settings["theme"],
-                    "snooze": store.settings["snooze_minutes"]}
+            return popup_info(r, self._day, self._offset, store.settings, datetime.now().date())
 
     def action(self, name):
         main = state["main"]
@@ -77,14 +72,15 @@ def refresh_main():
             pass
 
 
-MONTHS_GEN = ["января", "февраля", "марта", "апреля", "мая", "июня",
-              "июля", "августа", "сентября", "октября", "ноября", "декабря"]
 
 
 def show_popup(r):
     # для разовых — день самого напоминания, для повторяющихся — сегодняшнее вхождение
-    day = r["start"][:10] if r["repeat"] == "none" else datetime.now().strftime("%Y-%m-%d")
-    api = PopupApi(r["id"], day)
+    if r.get("kind") == "birthday":
+        day = r["_bday"]
+    else:
+        day = r["start"][:10] if r["repeat"] == "none" else datetime.now().strftime("%Y-%m-%d")
+    api = PopupApi(r["id"], day, r.get("_offset", 0))
     x = y = None
     if webview.screens:
         s = webview.screens[0]

@@ -34,7 +34,7 @@ const S = {
   page: "home", today: null, selected: null, view: null,
   allRange: "week", allCat: "", statsPeriod: "week",
   settings: {}, categories: {}, repeats: {}, canAutostart: false, todayItems: [],
-  ed: null, ctx: null, mp: null, slide: 0,
+  ed: null, ctx: null, mp: null, slide: 0, anim: "lava",
 };
 
 /* ===================== Утилиты ===================== */
@@ -77,6 +77,23 @@ function toast(text) {
   toast.timer = setTimeout(() => t.classList.remove("show"), 2200);
 }
 
+/* ===================== Фразы с учётом обращения ===================== */
+// g — обращение из настроек: m (мужское), f (женское), n (нейтральное)
+const PHRASES = {
+  hello: { m: "Привет, друг 👋", f: "Привет, подруга 👋", n: "Привет 👋" },
+  cheer: { m: "Ты справишься!", f: "Ты справишься!", n: "Всё получится!" },
+  allDone: { m: (w) => `Ты всё сделал (${w}). Отличный день!`, f: (w) => `Ты всё сделала (${w}). Отличный день!`,
+    n: (w) => `На сегодня всё сделано (${w}). Отличный день!` },
+  allDoneShort: { m: "Всё сделано — красавчик", f: "Всё сделано — красотка", n: "Всё сделано — так держать" },
+  doneToast: { m: "Готово! Ты молодец", f: "Готово! Ты молодец", n: "Отмечено как выполненное" },
+  ready: { m: "Готов к новому дню?", f: "Готова к новому дню?", n: "Новый день — новые дела" },
+};
+function phrase(key, ...args) {
+  const g = ["m", "f", "n"].includes(S.settings.gender) ? S.settings.gender : "m";
+  const p = PHRASES[key][g];
+  return typeof p === "function" ? p(...args) : p;
+}
+
 /* ===================== Компоненты ===================== */
 function tagsHtml(it) {
   const tags = [];
@@ -93,7 +110,45 @@ function dateBlock(d) {
   return `<div class="dateblock${today}"><b>${d.getDate()}</b><small>${MONTHS_SHORT[d.getMonth()]}</small></div>`;
 }
 
+function ageText(it) {
+  if (!it.age) return "День рождения";
+  return it.date === iso(S.today) ? `Сегодня исполняется ${it.age} 🎉` : `Исполнится ${it.age}`;
+}
+
+function bdayRow(it, withDate) {
+  const d = parse(it.date);
+  const left = withDate ? dateBlock(d).replace('class="dateblock', 'class="dateblock gold') : "";
+  const meta = withDate ? `${relDay(d)} · ${ageText(it)}` : ageText(it);
+  return `<div class="item bday" data-id="${it.id}" data-date="${it.date}">
+    <span class="bday-ic">${icon("cake")}</span>
+    ${left}
+    <div class="body" data-act="edit">
+      <div class="title">${esc(it.title)}</div>
+      <div class="meta">${esc(meta)}</div>
+      <div class="tags"><span class="tag gold">${icon("gift")}День рождения</span></div>
+    </div>
+    <button class="icon-btn" data-act="menu" title="Действия">${icon("dots")}</button>
+  </div>`;
+}
+
+function vacRange(v) {
+  const a = parse(v.start), b = parse(v.end), n = Math.round((b - a) / 864e5) + 1;
+  const range = a.getMonth() === b.getMonth()
+    ? `${a.getDate()}–${b.getDate()} ${MONTHS_GEN[b.getMonth()]}`
+    : `${a.getDate()} ${MONTHS_GEN[a.getMonth()]} – ${b.getDate()} ${MONTHS_GEN[b.getMonth()]}`;
+  return `${range} · ${n} ${plural(n, "день", "дня", "дней")}`;
+}
+
+function vacBanner(v) {
+  return `<button class="vac-banner" data-act="edit" data-id="${v.id}">
+    <span class="waves" aria-hidden="true"><i></i><i></i></span>
+    <span class="vb-ic">${icon("palm")}</span>
+    <span class="vb-txt"><b>${esc(v.title)}</b><small>${vacRange(v)}${v.mute_work ? " · работа на паузе" : ""}</small></span>
+  </button>`;
+}
+
 function itemRow(it, { withDate = false } = {}) {
+  if (it.kind === "birthday") return bdayRow(it, withDate);
   const missed = it.past && !it.done;
   const cls = ["item", it.done ? "done" : "", missed ? "missed" : "", it.important ? "hot" : ""].filter(Boolean).join(" ");
   const d = parse(it.date);
@@ -135,16 +190,19 @@ function calHead() {
     </div></div>`;
 }
 
-function miniCal(marks, hot = []) {
+function miniCal(info) {
   const { y, m } = S.view;
   const head = WD.map((w, i) => `<div class="wd${i > 4 ? " we" : ""}">${w}</div>`).join("");
   const days = monthGrid(y, m).map((d) => {
-    const key = iso(d), n = Math.min(marks[key] || 0, 3);
-    const isHot = hot.includes(key);
-    const cls = ["day", d.getMonth() !== m ? "out" : "", sameDay(d, S.today) ? "today" : "", sameDay(d, S.selected) ? "sel" : "", isHot ? "hot" : ""].join(" ");
+    const key = iso(d), n = Math.min(info.marks[key] || 0, 3);
+    const isHot = info.hot.includes(key), bd = info.bdays[key], vac = info.vac[key];
+    const col = wdIndex(d);
+    const cls = ["day", d.getMonth() !== m ? "out" : "", sameDay(d, S.today) ? "today" : "", sameDay(d, S.selected) ? "sel" : "",
+      isHot ? "hot" : "", bd ? "bday" : "", vac ? "vac" : "", vac && (vac.start || col === 0) ? "vs" : "", vac && (vac.end || col === 6) ? "ve" : ""].join(" ");
     const dots = n ? `<span class="dot">${"<i></i>".repeat(n)}</span>` : "";
     const flame = isHot ? fireBg() : "";
-    return `<button class="${cls}" data-act="pick" data-date="${key}">${flame}<span class="num">${d.getDate()}</span>${dots}</button>`;
+    const title = bd ? ` title="🎂 ${esc(bd.join(", "))}"` : "";
+    return `<button class="${cls}" data-act="pick" data-date="${key}"${title}>${flame}<span class="num">${d.getDate()}</span>${dots}${bd ? '<span class="cake">🎂</span>' : ""}</button>`;
   }).join("");
   return calHead() + `<div class="cal">${head}${days}</div>`;
 }
@@ -192,18 +250,19 @@ function closeMonthPicker() {
 /* ===================== Страницы ===================== */
 async function renderHome() {
   const sel = S.selected, { y, m } = S.view;
-  const [marks, dayItems, upcoming, week, hot] = await Promise.all([
-    api("month", y, m + 1),
+  const [info, dayItems, upcoming, week, vacs] = await Promise.all([
+    api("month_info", y, m + 1),
     api("range", iso(sel), iso(sel)),
     api("range", iso(addDays(S.today, 1)), iso(addDays(S.today, 7))),
     api("stats", "week"),
-    api("hot", y, m + 1),
+    api("vacations", iso(sel), iso(sel)),
   ]);
-  const todayLeft = S.todayItems.filter((i) => !i.done && !i.past).length;
+  const todayRem = S.todayItems.filter((i) => i.kind !== "birthday");
+  const todayLeft = todayRem.filter((i) => !i.done && !i.past).length;
   const isToday = sameDay(sel, S.today);
 
-  const dayList = dayItems.length
-    ? `<div class="list">${dayItems.map((i) => itemRow(i)).join("")}</div>`
+  const dayList = dayItems.length || vacs.length
+    ? `<div class="list">${vacs.map(vacBanner).join("")}${dayItems.map((i) => itemRow(i)).join("")}</div>`
     : emptyHtml(isToday ? "На сегодня пусто" : "На этот день пусто", "Добавь напоминание — и оно не потеряется", iso(sel));
 
   const up = upcoming.filter((i) => !i.done).slice(0, 4);
@@ -213,16 +272,16 @@ async function renderHome() {
 
   return `<div class="grid-home">
     <div class="card">
-      ${miniCal(marks, hot)}
+      ${miniCal(info)}
       <button class="summary" data-page="all">
         <span class="ic">${icon("target")}</span>
-        <span><b>Сегодня ${remindersWord(S.todayItems.length)}</b>
-        <small>${todayLeft ? `Осталось ${todayLeft} до конца дня` : "Всё сделано — красавчик"}</small></span>
+        <span><b>Сегодня ${remindersWord(todayRem.length)}</b>
+        <small>${!todayRem.length ? "Свободный день" : todayLeft ? `Осталось ${todayLeft} до конца дня` : phrase("allDoneShort")}</small></span>
         <span class="chev">${icon("right")}</span>
       </button>
     </div>
     <div class="card">
-      <div class="card-head"><h3>${isToday ? "Сегодня" : esc(dayTitle(sel))}</h3><span class="badge">${dayItems.length}</span>
+      <div class="card-head"><h3>${isToday ? "Сегодня" : esc(dayTitle(sel))}</h3><span class="badge">${dayItems.length + vacs.length}</span>
         <div class="spacer"></div>
         <button class="icon-btn" data-act="add-day" data-date="${iso(sel)}" title="Добавить на этот день">${icon("plus")}</button></div>
       ${dayList}
@@ -251,27 +310,39 @@ async function renderHome() {
 async function renderCalendar() {
   const { y, m } = S.view;
   const grid = monthGrid(y, m, 6);
-  const [items, dayItems] = await Promise.all([
+  const [items, dayItems, vacs] = await Promise.all([
     api("range", iso(grid[0]), iso(grid[grid.length - 1])),
     api("range", iso(S.selected), iso(S.selected)),
+    api("vacations", iso(grid[0]), iso(grid[grid.length - 1])),
   ]);
   const byDay = {};
   items.forEach((i) => (byDay[i.date] ||= []).push(i));
+  const vacOf = (key) => vacs.find((v) => v.start <= key && key <= v.end);
+  const dayVacs = vacs.filter((v) => v.start <= iso(S.selected) && iso(S.selected) <= v.end);
 
   const head = WD.map((w) => `<div class="wd">${w}</div>`).join("");
   const cells = grid.map((d) => {
     const key = iso(d), list = byDay[key] || [];
     const isHot = list.some((i) => i.important && !i.done);
-    const cls = ["cell", d.getMonth() !== m ? "out" : "", sameDay(d, S.today) ? "today" : "", sameDay(d, S.selected) ? "sel" : "", isHot ? "hot" : ""].join(" ");
-    const sorted = [...list].sort((a, b) => (b.important && !b.done) - (a.important && !a.done));
-    const chips = sorted.slice(0, 2).map((i) =>
-      `<span class="chip${i.done ? " done" : ""}${i.important ? " hot" : ""}" style="--c:${i.important ? IMPORTANT : CAT_COLORS[i.category] || "var(--accent)"}" title="${i.time} ${esc(i.title)}">${i.important ? icon("flame") : ""}${esc(i.title)}</span>`).join("");
-    const more = list.length > 2 ? `<span class="more-n">ещё ${list.length - 2}</span>` : "";
-    return `<button class="${cls}" data-act="pick" data-date="${key}"><span class="n">${isHot ? fireBg() : ""}<span class="num">${d.getDate()}</span></span>${chips}${more}</button>`;
+    const isBday = list.some((i) => i.kind === "birthday");
+    const vac = vacOf(key), col = wdIndex(d);
+    const vs = vac && (vac.start === key || col === 0), ve = vac && (vac.end === key || col === 6);
+    const cls = ["cell", d.getMonth() !== m ? "out" : "", sameDay(d, S.today) ? "today" : "", sameDay(d, S.selected) ? "sel" : "",
+      isHot ? "hot" : "", isBday ? "bday" : "", vac ? "vac" : "", vs ? "vs" : "", ve ? "ve" : ""].join(" ");
+    const rank = (i) => (i.kind === "birthday" ? 2 : 0) + (i.important && !i.done ? 1 : 0);
+    const sorted = [...list].sort((a, b) => rank(b) - rank(a));
+    const max = vac ? 1 : 2;
+    const chips = sorted.slice(0, max).map((i) => i.kind === "birthday"
+      ? `<span class="chip gold" title="День рождения: ${esc(i.title)}">🎂 ${esc(i.title)}${i.age ? ` · ${i.age}` : ""}</span>`
+      : `<span class="chip${i.done ? " done" : ""}${i.important ? " hot" : ""}" style="--c:${i.important ? IMPORTANT : CAT_COLORS[i.category] || "var(--accent)"}" title="${i.time} ${esc(i.title)}">${i.important ? icon("flame") : ""}${esc(i.title)}</span>`).join("");
+    const more = list.length > max ? `<span class="more-n">ещё ${list.length - max}</span>` : "";
+    const sea = vac ? `<span class="sea" aria-hidden="true"><i></i><i></i></span>${vs ? `<span class="vac-label">🏖 ${esc(vac.title)}</span>` : ""}` : "";
+    const confetti = isBday ? `<span class="confetti" aria-hidden="true">${"<i></i>".repeat(6)}</span><span class="cake">🎂</span>` : "";
+    return `<button class="${cls}" data-act="pick" data-date="${key}">${sea}${confetti}<span class="n">${isHot ? fireBg() : ""}<span class="num">${d.getDate()}</span></span>${chips}${more}</button>`;
   }).join("");
 
-  const dayList = dayItems.length
-    ? `<div class="list">${dayItems.map((i) => itemRow(i)).join("")}</div>`
+  const dayList = dayItems.length || dayVacs.length
+    ? `<div class="list">${dayVacs.map(vacBanner).join("")}${dayItems.map((i) => itemRow(i)).join("")}</div>`
     : emptyHtml("Свободный день", "Нажми ещё раз на день в календаре или на кнопку ниже", iso(S.selected));
 
   return `<div class="grid-cal compact">
@@ -291,17 +362,24 @@ async function renderCalendar() {
 
 async function renderAll() {
   const span = { day: 0, week: 6, month: 30 }[S.allRange];
-  let items = await api("range", iso(S.today), iso(addDays(S.today, span)));
+  let [items, vacs] = await Promise.all([
+    api("range", iso(S.today), iso(addDays(S.today, span))),
+    api("vacations", iso(S.today), iso(addDays(S.today, span))),
+  ]);
   const total = items.length;
-  if (S.allCat) items = items.filter((i) => (S.allCat === "important" ? i.important : i.category === S.allCat));
+  if (S.allCat) {
+    items = items.filter((i) => (S.allCat === "important" ? i.important : S.allCat === "birthday" ? i.kind === "birthday" : i.category === S.allCat));
+    if (S.allCat !== "vacation") vacs = [];
+    else items = [];
+  }
 
   const seg = [["day", "День"], ["week", "Неделя"], ["month", "Месяц"]]
     .map(([k, t]) => `<button class="${S.allRange === k ? "on" : ""}" data-act="range" data-v="${k}">${t}</button>`).join("");
-  const chips = [["", "Все", "", "bell"], ...Object.entries(S.categories).map(([k, t]) => [k, t, CAT_COLORS[k], "cat-" + k]), ["important", "Приоритет", IMPORTANT, "flame"]]
+  const chips = [["", "Все", "", "bell"], ...Object.entries(S.categories).map(([k, t]) => [k, t, CAT_COLORS[k], "cat-" + k]), ["important", "Приоритет", IMPORTANT, "flame"], ["birthday", "Дни рождения", "var(--gold-2)", "cake"], ["vacation", "Отпуск", "var(--sea)", "palm"]]
     .map(([k, t, c, ic]) => `<button class="fchip${S.allCat === k ? " on" : ""}" style="${c ? `--c:${c}` : ""}" data-act="cat" data-v="${k}">${icon(ic)}${t}</button>`).join("");
 
-  const list = items.length
-    ? `<div class="list">${items.map((i) => itemRow(i, { withDate: true })).join("")}</div>`
+  const list = items.length || vacs.length
+    ? `<div class="list">${vacs.map(vacBanner).join("")}${items.map((i) => itemRow(i, { withDate: true })).join("")}</div>`
     : emptyHtml("Здесь пока пусто", S.allCat ? "В этой категории ничего нет за выбранный период" : "За выбранный период напоминаний нет", iso(S.today));
 
   return `<div class="card">
@@ -382,7 +460,8 @@ function applyTheme() {
 }
 
 function renderChrome() {
-  const items = S.todayItems, done = items.filter((i) => i.done).length;
+  const items = S.todayItems.filter((i) => i.kind !== "birthday"), done = items.filter((i) => i.done).length;
+  const bdays = S.todayItems.filter((i) => i.kind === "birthday").map((i) => i.title);
   $("#sideValue").textContent = items.length ? `${done} из ${items.length} выполнено` : "Ничего не запланировано";
   $("#sideBar").style.width = items.length ? `${Math.round((done / items.length) * 100)}%` : "0";
   $("#chipDate").textContent = fullDate(S.today);
@@ -390,12 +469,13 @@ function renderChrome() {
   document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("active", b.dataset.page === S.page));
 
   if (S.page === "home") {
-    $("#heroTitle").textContent = `Привет, ${S.settings.name || "друг"} 👋`;
+    $("#heroTitle").textContent = S.settings.name ? `Привет, ${S.settings.name} 👋` : phrase("hello");
     const left = items.filter((i) => !i.done && !i.past).length;
-    $("#heroSub").textContent = !items.length
-      ? "На сегодня ничего не запланировано. Самое время добавить первое дело."
-      : left ? `Сегодня ${remindersWord(items.length)}, осталось ${left}. Ты справишься!`
-        : `На сегодня всё позади (${remindersWord(items.length)}). Отличный день!`;
+    const bd = bdays.length ? `🎂 Сегодня день рождения: ${bdays.join(", ")}. ` : "";
+    $("#heroSub").textContent = bd + (!items.length
+      ? (bd ? "Других дел на сегодня нет." : "На сегодня ничего не запланировано. Самое время добавить первое дело.")
+      : left ? `Сегодня ${remindersWord(items.length)}, осталось ${left}. ${phrase("cheer")}`
+        : phrase("allDone", remindersWord(items.length)));
   } else {
     const [t, s] = PAGES[S.page];
     $("#heroTitle").textContent = t;
@@ -432,43 +512,71 @@ function select(dateStr) {
 }
 
 /* ===================== Редактор ===================== */
+const KIND_UI = {
+  reminder: { mode: "Новое напоминание", edit: "Редактирование", ph: "Что напомнить?", note: "Описание",
+    notePh: "Детали, ссылки, что не забыть…", date: "Дата", saved: "Напоминание добавлено" },
+  birthday: { mode: "Новый день рождения", edit: "День рождения", ph: "Чей день рождения?", note: "Заметка",
+    notePh: "Например, идея подарка…", date: "Дата", saved: "День рождения добавлен" },
+  vacation: { mode: "Новый отпуск", edit: "Отпуск", ph: "Название, например «Турция»", note: "Заметка",
+    notePh: "Куда едем, что взять…", date: "С", saved: "Отпуск добавлен" },
+};
+const REMIND_OPTS = [[0, "В сам день"], [1, "За день"], [7, "За неделю"]];
+
 async function openEditor(id) {
   const r = await api("get", id);
-  if (!r) return toast("Напоминание не найдено");
-  showEditor({ id: r.id, title: r.title, note: r.note || "", date: r.date, time: r.time,
-    repeat: r.repeat, category: r.category || "", important: !!r.important });
+  if (!r) return toast("Запись не найдена");
+  showEditor({ id: r.id, kind: r.kind || "reminder", title: r.title, note: r.note || "", date: r.date, time: r.time,
+    repeat: r.repeat, category: r.category || "", important: !!r.important,
+    birth_year: r.birth_year || "", remind: r.remind || [], date_end: r.date_end || r.date, mute_work: !!r.mute_work });
+  if (r.kind === "birthday") celebrate($(".modal-head .dateblock"));
 }
 
-function openNew(dateStr) {
+function openNew(dateStr, kind = "reminder") {
   const now = new Date();
   let time = "09:00";
-  if (dateStr === iso(S.today)) {
+  if (dateStr === iso(S.today) && kind === "reminder") {
     const t = new Date(now.getTime() + 20 * 60000);
     t.setMinutes(Math.ceil(t.getMinutes() / 5) * 5);
     if (iso(t) !== dateStr) dateStr = iso(t);
     time = `${pad(t.getHours())}:${pad(t.getMinutes())}`;
   }
-  showEditor({ id: null, title: "", note: "", date: dateStr, time, repeat: "none", category: "", important: false });
+  showEditor({ id: null, kind, title: "", note: "", date: dateStr, time, repeat: "none", category: "", important: false,
+    birth_year: "", remind: [0, 1], date_end: iso(addDays(parse(dateStr), 6)), mute_work: true });
 }
 
 function showEditor(ed) {
   S.ed = ed;
-  $("#edMode").textContent = ed.id ? "Редактирование" : "Новое напоминание";
   $("#edTitle").value = ed.title;
   $("#edNote").value = ed.note;
-  ed.cal = { y: parse(ed.date).getFullYear(), m: parse(ed.date).getMonth() };
   $("#edTime").value = ed.time;
+  $("#edBYear").value = ed.birth_year;
+  ed.cal = { y: parse(ed.date).getFullYear(), m: parse(ed.date).getMonth() };
   $("#edDatePop").classList.remove("open");
+  $("#edDatePopEnd").classList.remove("open");
   $("#edError").textContent = "";
   $("#edDelete").style.display = ed.id ? "" : "none";
   $("#edDelete").innerHTML = `${icon("trash")}Удалить`;
   $("#edDelete").classList.remove("confirm");
-  $("#edPresets").innerHTML = ["+15 мин", "+1 час", ...TIME_PRESETS]
-    .map((t) => `<button data-act="preset" data-v="${t}">${t}</button>`).join("");
-  renderEdChoices();
-  updateEdHead();
+  $("#edKinds").style.display = ed.id ? "none" : "";
+  applyKind();
   $("#overlay").classList.add("open");
   setTimeout(() => $("#edTitle").focus(), 60);
+}
+
+function applyKind() {
+  const ed = S.ed, ui = KIND_UI[ed.kind];
+  $(".modal").dataset.kind = ed.kind;
+  $("#edMode").textContent = ed.id ? ui.edit : ui.mode;
+  $("#edTitle").placeholder = ui.ph;
+  $("#edNoteLabel").textContent = ui.note;
+  $("#edNote").placeholder = ui.notePh;
+  $("#edDateLabel").textContent = ui.date;
+  document.querySelectorAll("#edKinds button").forEach((b) => b.classList.toggle("on", b.dataset.v === ed.kind));
+  document.querySelectorAll(".modal [data-kinds]").forEach((f) => (f.hidden = !f.dataset.kinds.split(" ").includes(ed.kind)));
+  const presets = ed.kind === "reminder" ? ["+15 мин", "+1 час", ...TIME_PRESETS] : TIME_PRESETS;
+  $("#edPresets").innerHTML = presets.map((t) => `<button data-act="preset" data-v="${t}">${t}</button>`).join("");
+  renderEdChoices();
+  updateEdHead();
 }
 
 function renderEdChoices() {
@@ -478,35 +586,71 @@ function renderEdChoices() {
     + `<button class="fchip${ed.important ? " on" : ""}" style="--c:${IMPORTANT}" data-act="ed-important">${icon("flame")}Приоритет</button>`;
   $("#edRepeat").innerHTML = Object.entries(S.repeats).map(([k, t]) =>
     `<button class="${ed.repeat === k ? "on" : ""}" data-act="ed-repeat" data-v="${k}">${t}</button>`).join("");
+  const bd = parse(ed.date);
+  $("#edRemind").innerHTML = REMIND_OPTS.map(([off, t]) => {
+    const d = addDays(bd, -off);
+    return `<button class="ck${ed.remind.includes(off) ? " on" : ""}" data-act="ed-remind" data-v="${off}">
+      <span class="cb">${icon("check")}</span><span><b>${t}</b><small>${d.getDate()} ${MONTHS_GEN[d.getMonth()]}</small></span></button>`;
+  }).join("");
+  $("#edRemindAll").textContent = ed.remind.length === REMIND_OPTS.length ? "Снять все" : "Выбрать все";
+  $("#edMute").classList.toggle("on", ed.mute_work);
 }
 
-function edDatePop() {
-  const { y, m } = S.ed.cal;
+function edDatePop(which = "start") {
+  const ed = S.ed, cal = which === "end" ? ed.calEnd : ed.cal, cur = which === "end" ? ed.date_end : ed.date;
+  const { y, m } = cal;
   const head = WD.map((w, i) => `<div class="wd${i > 4 ? " we" : ""}">${w}</div>`).join("");
   const days = monthGrid(y, m).map((d) => {
-    const cls = ["day", d.getMonth() !== m ? "out" : "", sameDay(d, S.today) ? "today" : "", iso(d) === S.ed.date ? "sel" : ""].join(" ");
-    return `<button class="${cls}" data-act="ed-pick" data-v="${iso(d)}">${d.getDate()}</button>`;
+    const inRange = ed.kind === "vacation" && iso(d) >= ed.date && iso(d) <= ed.date_end;
+    const cls = ["day", d.getMonth() !== m ? "out" : "", sameDay(d, S.today) ? "today" : "", iso(d) === cur ? "sel" : "", inRange ? "range" : ""].join(" ");
+    return `<button class="${cls}" data-act="ed-pick" data-which="${which}" data-v="${iso(d)}">${d.getDate()}</button>`;
   }).join("");
-  $("#edDatePop").innerHTML = `<div class="card-head"><h3>${MONTHS[m]} ${y}</h3><div class="spacer"></div>
-    <button class="icon-btn" data-act="ed-cal" data-v="-1">${icon("left")}</button>
-    <button class="icon-btn" data-act="ed-cal" data-v="1">${icon("right")}</button></div>
+  const title = ed.kind === "birthday" ? MONTHS[m] : `${MONTHS[m]} ${y}`;
+  $(which === "end" ? "#edDatePopEnd" : "#edDatePop").innerHTML = `<div class="card-head"><h3>${title}</h3><div class="spacer"></div>
+    <button class="icon-btn" data-act="ed-cal" data-which="${which}" data-v="-1">${icon("left")}</button>
+    <button class="icon-btn" data-act="ed-cal" data-which="${which}" data-v="1">${icon("right")}</button></div>
     <div class="cal">${head}${days}</div>`;
 }
 
-function setEdDate(dateStr) {
-  S.ed.date = dateStr;
-  const d = parse(dateStr);
-  S.ed.cal = { y: d.getFullYear(), m: d.getMonth() };
+function setEdDate(dateStr, which = "start") {
+  const ed = S.ed, d = parse(dateStr);
+  if (which === "end") {
+    ed.date_end = dateStr;
+    if (ed.date_end < ed.date) ed.date = dateStr;
+  } else {
+    ed.date = dateStr;
+    ed.cal = { y: d.getFullYear(), m: d.getMonth() };
+    if (ed.date_end < ed.date) ed.date_end = iso(addDays(d, 6));
+  }
+  if (ed.kind === "birthday") renderEdChoices();
   updateEdHead();
 }
 
+const dmy = (d, withYear = true) => `${d.getDate()} ${MONTHS_GEN[d.getMonth()]}${withYear ? " " + d.getFullYear() : ""}`;
+
 function updateEdHead() {
-  const tv = $("#edTime").value;
-  const d = parse(S.ed.date);
-  $("#edDateText").textContent = `${WD[wdIndex(d)]}, ${d.getDate()} ${MONTHS_GEN[d.getMonth()]} ${d.getFullYear()}`;
+  const ed = S.ed, tv = $("#edTime").value, d = parse(ed.date);
   $("#edDay").textContent = d.getDate();
   $("#edMon").textContent = MONTHS_SHORT[d.getMonth()];
-  const rep = S.ed.repeat !== "none" ? ` · ${S.repeats[S.ed.repeat].toLowerCase()}` : "";
+  if (ed.kind === "vacation") {
+    const e = parse(ed.date_end), n = Math.round((e - d) / 864e5) + 1;
+    $("#edDateText").textContent = `${WD[wdIndex(d)]}, ${dmy(d)}`;
+    $("#edDateEndText").textContent = `${WD[wdIndex(e)]}, ${dmy(e)}`;
+    $("#edWhen").textContent = `${dmy(d, false)} – ${dmy(e, false)} · ${n} ${plural(n, "день", "дня", "дней")}`;
+    return;
+  }
+  if (ed.kind === "birthday") {
+    $("#edDateText").textContent = dmy(d, false);
+    const by = Number($("#edBYear").value);
+    const age = by >= 1900 && by <= d.getFullYear() ? d.getFullYear() - by : null;
+    $("#edAge").textContent = age ? `🎉 ${d.getFullYear() === S.today.getFullYear() ? "В этом году" : "В " + d.getFullYear()} исполнится ${age}` : "";
+    const days = Math.round((d - S.today) / 864e5);
+    const soon = days === 0 ? "сегодня!" : days === 1 ? "завтра" : `через ${days} ${plural(days, "день", "дня", "дней")}`;
+    $("#edWhen").textContent = `${dmy(d, false)} · ${soon}${age ? ` · исполнится ${age}` : ""}`;
+    return;
+  }
+  $("#edDateText").textContent = `${WD[wdIndex(d)]}, ${dmy(d)}`;
+  const rep = ed.repeat !== "none" ? ` · ${S.repeats[ed.repeat].toLowerCase()}` : "";
   $("#edWhen").textContent = `${dayTitle(d)}${tv ? " · " + tv : ""}${rep}`;
 }
 
@@ -518,12 +662,13 @@ function closeEditor() {
 async function saveEditor() {
   const ed = S.ed;
   const time = $("#edTime").value.trim();
-  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+  if (ed.kind !== "vacation" && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
     $("#edError").textContent = "Время в формате ЧЧ:ММ, например 09:30";
     return;
   }
-  const payload = { id: ed.id, title: $("#edTitle").value, note: $("#edNote").value, date: ed.date,
-    time, repeat: ed.repeat, category: ed.category, important: ed.important };
+  const payload = { id: ed.id, kind: ed.kind, title: $("#edTitle").value, note: $("#edNote").value, date: ed.date,
+    time, repeat: ed.repeat, category: ed.category, important: ed.important,
+    birth_year: $("#edBYear").value.trim(), remind: ed.remind, date_end: ed.date_end, mute_work: ed.mute_work };
   const res = await api("save", payload);
   if (res.error) {
     $("#edError").textContent = res.error;
@@ -531,8 +676,30 @@ async function saveEditor() {
   }
   closeEditor();
   select(res.date);
-  toast(ed.id ? "Изменения сохранены" : "Напоминание добавлено");
+  toast(ed.id ? "Изменения сохранены" : KIND_UI[ed.kind].saved);
   refresh();
+}
+
+/* конфетти при открытии дня рождения */
+function celebrate(anchor) {
+  if (!anchor || S.anim === "off") return;
+  const r = anchor.getBoundingClientRect();
+  const colors = ["#F5C451", "#FF5C8A", "#5E6BFF", "#35D49A", "#FF7A1A", "#A27BFF"];
+  for (let i = 0; i < 26; i++) {
+    const c = document.createElement("i");
+    c.className = "confetto";
+    c.style.background = colors[i % colors.length];
+    c.style.left = r.left + r.width / 2 + "px";
+    c.style.top = r.top + r.height / 2 + "px";
+    document.body.appendChild(c);
+    const ang = Math.random() * Math.PI * 2, sp = 70 + Math.random() * 110;
+    const dx = Math.cos(ang) * sp, dy = Math.sin(ang) * sp - 60;
+    c.animate([
+      { transform: "translate(-50%,-50%) rotate(0deg)", opacity: 1 },
+      { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) rotate(${200 + Math.random() * 300}deg)`, opacity: 1, offset: .6 },
+      { transform: `translate(calc(-50% + ${dx * 1.15}px), calc(-50% + ${dy + 90}px)) rotate(${400 + Math.random() * 300}deg)`, opacity: 0 }
+    ], { duration: 1100 + Math.random() * 500, easing: "cubic-bezier(.2,.7,.4,1)" }).onfinish = () => c.remove();
+  }
 }
 
 /* ===================== Контекстное меню ===================== */
@@ -542,7 +709,7 @@ function openMenu(btn) {
   const done = item.classList.contains("done");
   const ctx = $("#ctx");
   ctx.innerHTML = `<button data-act="m-edit">${icon("edit")}Изменить</button>
-    <button data-act="m-toggle">${icon("check")}${done ? "Снять отметку" : "Отметить выполненным"}</button>
+    ${item.classList.contains("bday") ? "" : `<button data-act="m-toggle">${icon("check")}${done ? "Снять отметку" : "Отметить выполненным"}</button>`}
     <button class="red" data-act="m-delete">${icon("trash")}Удалить</button>`;
   ctx.classList.add("open");
   const r = btn.getBoundingClientRect(), w = ctx.offsetWidth, h = ctx.offsetHeight;
@@ -553,7 +720,7 @@ const closeMenu = () => { $("#ctx").classList.remove("open"); S.ctx = null; };
 
 async function toggleDone(id, date) {
   const state = await api("toggle_done", id, date);
-  if (state) toast("Отмечено как выполненное");
+  if (state) toast(phrase("doneToast"));
   refresh();
 }
 
@@ -562,7 +729,7 @@ document.addEventListener("click", async (e) => {
   const el = e.target.closest("[data-act], [data-page]");
   if (!e.target.closest("#ctx")) closeMenu();
   if (S.mp && !e.target.closest(".mpop") && !e.target.closest("[data-act=mp-open]")) closeMonthPicker();
-  if (S.ed && !e.target.closest(".datefield")) $("#edDatePop").classList.remove("open");
+  if (S.ed && !e.target.closest(".datefield")) { $("#edDatePop").classList.remove("open"); $("#edDatePopEnd").classList.remove("open"); }
   if (!el) {
     if (e.target === $("#overlay")) closeEditor();
     return;
@@ -633,6 +800,21 @@ document.addEventListener("click", async (e) => {
     case "ed-cat": S.ed.category = S.ed.category === el.dataset.v ? "" : el.dataset.v; return renderEdChoices();
     case "ed-important": S.ed.important = !S.ed.important; return renderEdChoices();
     case "ed-repeat": S.ed.repeat = el.dataset.v; renderEdChoices(); return updateEdHead();
+    case "ed-kind": {
+      S.ed.kind = el.dataset.v;
+      if (S.ed.kind === "birthday" && !S.ed.id) $("#edTime").value = "10:00";
+      $("#edError").textContent = "";
+      return applyKind();
+    }
+    case "ed-remind": {
+      const off = Number(el.dataset.v), r = S.ed.remind;
+      S.ed.remind = r.includes(off) ? r.filter((x) => x !== off) : [...r, off].sort((a, b) => a - b);
+      return renderEdChoices();
+    }
+    case "ed-remind-all":
+      S.ed.remind = S.ed.remind.length === REMIND_OPTS.length ? [] : REMIND_OPTS.map(([o]) => o);
+      return renderEdChoices();
+    case "ed-mute": S.ed.mute_work = !S.ed.mute_work; return renderEdChoices();
     case "preset": {
       const v = el.dataset.v;
       if (v.startsWith("+")) {
@@ -645,21 +827,29 @@ document.addEventListener("click", async (e) => {
       return updateEdHead();
     }
     case "ed-datepick": {
-      const pop = $("#edDatePop");
-      if (!pop.classList.contains("open")) edDatePop();
+      const which = el.dataset.which || "start";
+      const pop = $(which === "end" ? "#edDatePopEnd" : "#edDatePop");
+      $(which === "end" ? "#edDatePop" : "#edDatePopEnd").classList.remove("open");
+      if (!pop.classList.contains("open")) {
+        if (which === "end") { const d = parse(S.ed.date_end); S.ed.calEnd = { y: d.getFullYear(), m: d.getMonth() }; }
+        edDatePop(which);
+      }
       return pop.classList.toggle("open");
     }
     case "ed-cal": {
-      let { y, m } = S.ed.cal;
+      const which = el.dataset.which || "start", key = which === "end" ? "calEnd" : "cal";
+      let { y, m } = S.ed[key];
       m += Number(el.dataset.v);
       if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; }
-      S.ed.cal = { y, m };
-      return edDatePop();
+      S.ed[key] = { y, m };
+      return edDatePop(which);
     }
-    case "ed-pick":
-      setEdDate(el.dataset.v);
+    case "ed-pick": {
+      const which = el.dataset.which || "start";
+      setEdDate(el.dataset.v, which);
       $("#edError").textContent = "";
-      return $("#edDatePop").classList.remove("open");
+      return $(which === "end" ? "#edDatePopEnd" : "#edDatePop").classList.remove("open");
+    }
     case "ed-delete": {
       if (!el.classList.contains("confirm")) {
         el.classList.add("confirm");
@@ -684,6 +874,11 @@ document.addEventListener("change", (e) => {
   if (e.target.id === "setName") saveSettings({ name: e.target.value.trim() });
 });
 $("#edTitle").addEventListener("input", () => ($("#edError").textContent = ""));
+$("#edBYear").addEventListener("input", (e) => {
+  e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4);
+  $("#edError").textContent = "";
+  updateEdHead();
+});
 $("#edTime").addEventListener("input", (e) => {
   // маска ЧЧ:ММ — только цифры, двоеточие подставляется само
   const digits = e.target.value.replace(/\D/g, "").slice(0, 4);

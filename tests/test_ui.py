@@ -154,3 +154,42 @@ def test_priority_fire(page):
     expect(page.locator(f".cal .day[data-date='{TODAY.isoformat()}'] .flame")).to_have_count(1)
     page.click("nav [data-page=calendar]")
     expect(page.locator(f".cell[data-date='{TODAY.isoformat()}'] .flame")).to_have_count(1)
+
+
+def test_create_birthday_today(page):
+    page.click("header [data-act=add]")
+    page.click("[data-act=ed-kind][data-v=birthday]")
+    expect(page.locator(".modal")).to_have_attribute("data-kind", "birthday")
+    expect(page.locator("#edCats")).to_be_hidden()                 # у дня рождения нет категорий
+    page.fill("#edTitle", "Ксюша")
+    page.type("#edBYear", "2000")
+    expect(page.locator("#edAge")).to_contain_text(f"исполнится {TODAY.year - 2000}")
+    page.click("[data-act=ed-remind-all]")
+    expect(page.locator("#edRemind .ck.on")).to_have_count(3)
+    page.click("[data-act=ed-save]")
+    bday = page.locator(".item.bday", has_text="Ксюша").first
+    expect(bday).to_be_visible()
+    expect(page.locator("#heroSub")).to_contain_text("день рождения: Ксюша")
+    expect(page.locator("#sideValue")).to_have_text("1 из 2 выполнено")  # ДР не влияет на прогресс
+    bday.locator("[data-act=menu]").click()
+    expect(page.locator("[data-act=m-toggle]")).to_have_count(0)    # отметить «выполнено» нельзя
+
+
+def test_create_vacation(page):
+    page.click("header [data-act=add]")
+    page.click("[data-act=ed-kind][data-v=vacation]")
+    page.click("[data-act=ed-save]")                               # пустое название → «Отпуск»
+    expect(page.locator(".vac-banner", has_text="Отпуск").first).to_be_visible()
+    expect(page.locator(f".cal .day.vac[data-date='{TODAY.isoformat()}']")).to_have_count(1)
+    page.click("nav [data-page=calendar]")
+    expect(page.locator(f".cell.vac[data-date='{TODAY.isoformat()}']")).to_have_count(1)
+
+
+def test_month_picker(page):
+    page.click("[data-act=mp-open]")
+    expect(page.locator(".mpop .mt")).to_have_count(12)
+    page.click("[data-act=mp-year][data-v='1']")
+    expect(page.locator(".mp-year b")).to_have_text(str(TODAY.year + 1))
+    page.click("[data-act=mp-month][data-v='0']")
+    expect(page.locator(".mbtn")).to_have_text(f"Январь {TODAY.year + 1}")
+    expect(page.locator(".mpop")).to_have_count(0)
