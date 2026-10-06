@@ -47,6 +47,7 @@ const sameDay = (a, b) => iso(a) === iso(b);
 const wdIndex = (d) => (d.getDay() + 6) % 7;
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const icon = (id) => `<svg class="i"><use href="#${id}"/></svg>`;
+const fireBg = () => `<span class="flame" aria-hidden="true"><svg viewBox="0 0 32 40"><use href="#fire-bg"/></svg></span>`;
 
 function plural(n, one, few, many) {
   const a = n % 10, b = n % 100;
@@ -142,8 +143,8 @@ function miniCal(marks, hot = []) {
     const isHot = hot.includes(key);
     const cls = ["day", d.getMonth() !== m ? "out" : "", sameDay(d, S.today) ? "today" : "", sameDay(d, S.selected) ? "sel" : "", isHot ? "hot" : ""].join(" ");
     const dots = n ? `<span class="dot">${"<i></i>".repeat(n)}</span>` : "";
-    const flame = isHot ? `<span class="flame">${icon("flame")}</span>` : "";
-    return `<button class="${cls}" data-act="pick" data-date="${key}">${d.getDate()}${dots}${flame}</button>`;
+    const flame = isHot ? fireBg() : "";
+    return `<button class="${cls}" data-act="pick" data-date="${key}">${flame}<span class="num">${d.getDate()}</span>${dots}</button>`;
   }).join("");
   return calHead() + `<div class="cal">${head}${days}</div>`;
 }
@@ -235,7 +236,7 @@ async function renderCalendar() {
     const chips = sorted.slice(0, 2).map((i) =>
       `<span class="chip${i.done ? " done" : ""}${i.important ? " hot" : ""}" style="--c:${i.important ? IMPORTANT : CAT_COLORS[i.category] || "var(--accent)"}" title="${i.time} ${esc(i.title)}">${i.important ? icon("flame") : ""}${esc(i.title)}</span>`).join("");
     const more = list.length > 2 ? `<span class="more-n">ещё ${list.length - 2}</span>` : "";
-    return `<button class="${cls}" data-act="pick" data-date="${key}"><span class="n">${d.getDate()}</span>${isHot ? `<span class="flame">${icon("flame")}</span>` : ""}${chips}${more}</button>`;
+    return `<button class="${cls}" data-act="pick" data-date="${key}"><span class="n">${isHot ? fireBg() : ""}<span class="num">${d.getDate()}</span></span>${chips}${more}</button>`;
   }).join("");
 
   const dayList = dayItems.length

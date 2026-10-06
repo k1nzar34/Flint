@@ -427,14 +427,20 @@ input[type="date"].input, input[type="time"].input { font-variant-numeric: tabul
 .item.done .title .fire { color: var(--faint); }
 .item.done .title .fire svg.i { fill: none; }
 
-.day .flame, .cell .flame { position: absolute; color: #FF7A1A; display: grid; pointer-events: none; }
-.day .flame { top: 2px; right: 3px; }
-.day .flame svg.i { width: 12px; height: 12px; stroke-width: 2.4; fill: rgba(255, 122, 26, .3); }
-.day.sel .flame { color: #FFE2A6; }
-.day.sel .flame svg.i { fill: rgba(255, 226, 166, .35); }
-.cell { position: relative; }
-.cell .flame { top: 9px; right: 9px; }
-.cell .flame svg.i { width: 15px; height: 15px; stroke-width: 2.2; fill: rgba(255, 122, 26, .3); }
+/* дата внутри пламени */
+.day .num, .cell .num { position: relative; z-index: 1; }
+.flame { position: absolute; pointer-events: none; display: block; filter: drop-shadow(0 3px 8px rgba(255, 90, 40, .45)); }
+.flame svg { width: 100%; height: 100%; display: block; }
+.day .flame { width: 36px; height: 44px; left: 50%; top: 50%; transform: translate(-50%, -56%); }
+.day.hot { color: #fff; font-weight: 750; }
+.day.hot .num { font-size: 13px; letter-spacing: -.02em; transform: translateY(4px); text-shadow: 0 1px 2px rgba(120, 20, 0, .45); }
+.day.hot.out .flame { opacity: .45; }
+.day.hot .dot { display: none; }
+.cell .n { position: relative; }
+.cell.hot .n { background: none !important; color: #fff; }
+.cell .flame { width: 30px; height: 37px; left: 50%; top: 50%; transform: translate(-50%, -58%); }
+.cell.hot .num { font-size: 12px; letter-spacing: -.02em; transform: translateY(4px); text-shadow: 0 1px 2px rgba(120, 20, 0, .45); }
+.cell.hot.out .flame { opacity: .45; }
 .cell.hot:not(.sel) { border-color: rgba(255, 122, 26, .45); }
 .chip.hot { font-weight: 600; display: flex; align-items: center; gap: 3px; }
 .chip svg.i { width: 11px; height: 11px; stroke-width: 2.6; flex-shrink: 0; color: #FF7A1A; }
