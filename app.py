@@ -4,6 +4,7 @@
 Режим разработки в браузере (без pywebview):  python devserver.py
 """
 import json
+import sys
 import threading
 import time
 from datetime import datetime
@@ -24,7 +25,38 @@ POPUP_W, POPUP_H = 360, 440
 state = {"main": None, "quitting": False}
 
 
+def style_titlebar(theme):
+    """Полоса заголовка окна Windows в цвет темы: тёмная/светлая, на Windows 11 — точно в цвет фона."""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        hwnd = ctypes.windll.user32.FindWindowW(None, "Flint")
+        if not hwnd:
+            return
+        dwm, dark = ctypes.windll.dwmapi, theme == "dark"
+        flag = ctypes.c_int(1 if dark else 0)
+        for attr in (20, 19):  # DWMWA_USE_IMMERSIVE_DARK_MODE (новые и старые сборки Windows 10)
+            if dwm.DwmSetWindowAttribute(hwnd, attr, ctypes.byref(flag), 4) == 0:
+                break
+        # цвета в формате 0x00BBGGRR; на Windows 10 эти вызовы просто не сработают
+        caption = ctypes.c_int(0x00170B09 if dark else 0x00FAF3F2)   # #090B17 / #F2F3FA
+        text = ctypes.c_int(0x00B8918B if dark else 0x00936C66)      # приглушённый текст заголовка
+        dwm.DwmSetWindowAttribute(hwnd, 35, ctypes.byref(caption), 4)  # DWMWA_CAPTION_COLOR
+        dwm.DwmSetWindowAttribute(hwnd, 34, ctypes.byref(caption), 4)  # DWMWA_BORDER_COLOR
+        dwm.DwmSetWindowAttribute(hwnd, 36, ctypes.byref(text), 4)     # DWMWA_TEXT_COLOR
+        ctypes.windll.user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0027)  # перерисовать рамку
+    except Exception:
+        pass
+
+
 class MainApi(Api):
+    def save_settings(self, values):
+        result = super().save_settings(values)
+        if "theme" in values:
+            style_titlebar(store.settings["theme"])
+        return result
+
     def quit(self):
         state["quitting"] = True
         for w in list(webview.windows):
@@ -120,6 +152,7 @@ def main():
                                 width=1280, height=820, min_size=(1080, 700),
                                 background_color="#0B0D1A")
     win.events.closing += on_closing
+    win.events.shown += lambda: style_titlebar(store.settings["theme"])
     state["main"] = win
     webview.start(watcher, http_server=True)
 

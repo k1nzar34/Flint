@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="8 8 240 240">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
 <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4338F0"/><stop offset="1" stop-color="#2A0F96"/></linearGradient>
 <radialGradient id="glow" cx=".54" cy=".5" r=".46"><stop offset="0" stop-color="#FF6A3D" stop-opacity=".2"/><stop offset="1" stop-color="#FF6A3D" stop-opacity="0"/></radialGradient></defs>
-<rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)"/><rect x="8" y="8" width="240" height="240" rx="56" fill="url(#glow)"/>
-<svg x="56" y="32" width="144" height="200" viewBox="0 0 180 260"><defs>
+<rect x="0" y="0" width="256" height="256" rx="58" fill="url(#bg)"/><rect x="0" y="0" width="256" height="256" rx="58" fill="url(#glow)"/>
+<svg x="45" y="18" width="166" height="230" viewBox="0 0 180 260"><defs>
     <linearGradient id="fa" gradientUnits="userSpaceOnUse" x1="124" y1="10" x2="22" y2="200">
       <stop offset="0" stop-color="#FFD84A"/><stop offset=".44" stop-color="#FF9A1F"/><stop offset=".64" stop-color="#FF4F64"/><stop offset=".84" stop-color="#EC3BD8"/><stop offset="1" stop-color="#B63BFF"/>
     </linearGradient>
