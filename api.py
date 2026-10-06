@@ -23,7 +23,8 @@ def set_autostart(enabled):
                          winreg.KEY_SET_VALUE)
     with key:
         if enabled:
-            winreg.SetValueEx(key, "Flint", 0, winreg.REG_SZ, f'"{sys.executable}"')
+            # --background: при входе в Windows Flint стартует сразу в трее, без окна
+            winreg.SetValueEx(key, "Flint", 0, winreg.REG_SZ, f'"{sys.executable}" --background')
         else:
             try:
                 winreg.DeleteValue(key, "Flint")

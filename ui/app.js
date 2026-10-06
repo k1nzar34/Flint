@@ -80,6 +80,9 @@ function toast(text) {
 /* ===================== Фразы с учётом обращения ===================== */
 // g — обращение из настроек: m (мужское), f (женское), n (нейтральное)
 const PHRASES = {
+  autoOn: { m: "Напоминания придут, даже если ты не открывал Flint", f: "Напоминания придут, даже если ты не открывала Flint",
+    n: "Напоминания придут, даже если Flint не открывали" },
+  autoOff: { m: "пока сам не откроешь Flint", f: "пока сама не откроешь Flint", n: "пока Flint снова не откроют" },
   hello: { m: "Привет, друг 👋", f: "Привет, подруга 👋", n: "Привет 👋" },
   cheer: { m: "Ты справишься!", f: "Ты справишься!", n: "Всё получится!" },
   allDone: { m: (w) => `Ты всё сделал (${w}). Отличный день!`, f: (w) => `Ты всё сделала (${w}). Отличный день!`,
@@ -451,8 +454,12 @@ function renderSettings() {
         ${seg("set-snooze", [[5, "5"], [10, "10"], [15, "15"], [30, "30 мин"]], st.snooze_minutes)}</div>
       <div class="setting"><span class="ic">${icon("power")}</span>
         <div class="txt"><b>Запускать вместе с Windows</b>
-        <small>${S.canAutostart ? "Чтобы напоминания работали всегда" : "Доступно в собранной exe-версии"}</small></div>
+        <small>${S.canAutostart ? "Flint тихо стартует в трее, у часов" : "Доступно в собранной exe-версии"}</small></div>
         ${sw("autostart", st.autostart, !S.canAutostart)}</div>
+      <div class="warn-note${st.autostart ? "" : " off"}">${icon("bell")}<div>
+        <b>${st.autostart ? phrase("autoOn") : "Без автозапуска напоминания могут не прийти"}</b>
+        <span>Напоминания работают, только пока Flint запущен. Крестик не выключает его — Flint ждёт в трее у часов.
+        Полностью выключает только «Выход»${st.autostart ? "." : ": после этого или после перезагрузки компьютера уведомлений не будет, " + phrase("autoOff") + "."}</span></div></div>
     </div>
     <div class="card"><div class="card-head"><h3>Анимации</h3></div>
       <div class="setting"><span class="ic">${icon("flame")}</span>

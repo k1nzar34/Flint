@@ -42,7 +42,7 @@ DEFAULT_SETTINGS = {
     "theme": "dark",
     "sound": True,
     "snooze_minutes": 10,
-    "autostart": False,
+    "autostart": True,              # запускать вместе с Windows (в трее)
     "anim_effect": "lava",          # lava / plain / off
     "anim_speed": "normal",         # fast / normal / slow
     "tray_hint_shown": False,       # подсказку «Flint работает в фоне» показали

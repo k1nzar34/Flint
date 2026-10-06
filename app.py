@@ -12,7 +12,7 @@ from datetime import datetime
 
 import webview
 
-from api import Api, lock, store
+from api import Api, lock, set_autostart, store
 from core import popup_info
 
 try:
@@ -195,9 +195,15 @@ def on_closing():
 
 
 def main():
+    background = "--background" in sys.argv  # запуск вместе с Windows — сразу в трей
+    if store.settings.get("autostart"):
+        try:
+            set_autostart(True)  # включено по умолчанию; заодно обновляет путь, если exe переместили
+        except OSError:
+            pass
     win = webview.create_window("Flint", "ui/index.html", js_api=MainApi(),
                                 width=1280, height=820, min_size=(1080, 700),
-                                background_color="#0B0D1A")
+                                background_color="#0B0D1A", hidden=background)
     win.events.closing += on_closing
     win.events.shown += lambda: style_titlebar(store.settings["theme"])
     state["main"] = win
