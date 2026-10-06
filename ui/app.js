@@ -142,7 +142,7 @@ function vacRange(v) {
 function vacBanner(v) {
   return `<button class="vac-banner" data-act="edit" data-id="${v.id}">
     <span class="waves" aria-hidden="true"><i></i><i></i></span>
-    <span class="vb-ic">${icon("palm")}</span>
+    <span class="vb-ic"><svg class="isl" viewBox="0 0 24 24"><use href="#island"/></svg></span>
     <span class="vb-txt"><b>${esc(v.title)}</b><small>${vacRange(v)}${v.mute_work ? " · работа на паузе" : ""}</small></span>
   </button>`;
 }
@@ -202,7 +202,7 @@ function miniCal(info) {
     const dots = n ? `<span class="dot">${"<i></i>".repeat(n)}</span>` : "";
     const flame = isHot ? fireBg() : "";
     const title = bd ? ` title="🎂 ${esc(bd.join(", "))}"` : "";
-    return `<button class="${cls}" data-act="pick" data-date="${key}"${title}>${flame}<span class="num">${d.getDate()}</span>${dots}${bd ? '<span class="cake">🎂</span>' : ""}</button>`;
+    return `<button class="${cls}" data-act="pick" data-date="${key}"${title}>${flame}<span class="num">${d.getDate()}</span>${dots}${bd ? '<svg class="hat" viewBox="0 0 20 24" aria-hidden="true"><use href="#party-hat"/></svg>' : ""}</button>`;
   }).join("");
   return calHead() + `<div class="cal">${head}${days}</div>`;
 }
@@ -225,7 +225,7 @@ async function openMonthPicker(anchor, year) {
   const tiles = MONTHS.map((name, i) => {
     const o = over[i], marks = [];
     if (o.bdays) marks.push(`<span class="mk bd">🎂 ${o.bdays}</span>`);
-    if (o.vacation) marks.push(`<span class="mk vc">🏖</span>`);
+    if (o.vacation) marks.push(`<span class="mk vc"><svg class="isl" viewBox="0 0 24 24"><use href="#island"/></svg></span>`);
     if (o.hot) marks.push(`<span class="mk fr">🔥 ${o.hot}</span>`);
     const cls = ["mt", year === S.view.y && i === S.view.m ? "on" : "",
       year === cur.getFullYear() && i === cur.getMonth() ? "cur" : ""].join(" ");
@@ -239,7 +239,7 @@ async function openMonthPicker(anchor, year) {
       <b>${year}</b>
       <button class="icon-btn" data-act="mp-year" data-v="1" title="Следующий год">${icon("right")}</button></div>
     <div class="mp-grid">${tiles}</div>
-    <div class="mp-legend"><span class="mk bd">🎂 дни рождения</span><span class="mk vc">🏖 отпуск</span><span class="mk fr">🔥 приоритеты</span></div>`;
+    <div class="mp-legend"><span class="mk bd">🎂 дни рождения</span><span class="mk vc"><svg class="isl" viewBox="0 0 24 24"><use href="#island"/></svg> отпуск</span><span class="mk fr">🔥 приоритеты</span></div>`;
   if (fresh) pop.classList.add("enter");
 }
 function closeMonthPicker() {
@@ -333,12 +333,13 @@ async function renderCalendar() {
     const sorted = [...list].sort((a, b) => rank(b) - rank(a));
     const max = vac ? 1 : 2;
     const chips = sorted.slice(0, max).map((i) => i.kind === "birthday"
-      ? `<span class="chip gold" title="День рождения: ${esc(i.title)}">🎂 ${esc(i.title)}${i.age ? ` · ${i.age}` : ""}</span>`
+      ? `<span class="chip gold" title="День рождения: ${esc(i.title)}">${esc(i.title)}${i.age ? ` · ${i.age}` : ""}</span>`
       : `<span class="chip${i.done ? " done" : ""}${i.important ? " hot" : ""}" style="--c:${i.important ? IMPORTANT : CAT_COLORS[i.category] || "var(--accent)"}" title="${i.time} ${esc(i.title)}">${i.important ? icon("flame") : ""}${esc(i.title)}</span>`).join("");
     const more = list.length > max ? `<span class="more-n">ещё ${list.length - max}</span>` : "";
-    const sea = vac ? `<span class="sea" aria-hidden="true"><i></i><i></i></span>${vs ? `<span class="vac-label">🏖 ${esc(vac.title)}</span>` : ""}` : "";
-    const confetti = isBday ? `<span class="confetti" aria-hidden="true">${"<i></i>".repeat(6)}</span><span class="cake">🎂</span>` : "";
-    return `<button class="${cls}" data-act="pick" data-date="${key}">${sea}${confetti}<span class="n">${isHot ? fireBg() : ""}<span class="num">${d.getDate()}</span></span>${chips}${more}</button>`;
+    const sea = vac ? `<span class="sea" aria-hidden="true"><i></i><i></i></span>${vs ? `<span class="vac-label" title="${esc(vac.title)}"><svg class="isl" viewBox="0 0 24 24"><use href="#island"/></svg><span>${esc(vac.title)}</span></span>` : ""}` : "";
+    const confetti = isBday ? `<span class="confetti" aria-hidden="true">${"<i></i>".repeat(6)}</span>` : "";
+    const hat = isBday && !isHot ? '<svg class="hat" viewBox="0 0 20 24" aria-hidden="true"><use href="#party-hat"/></svg>' : "";
+    return `<button class="${cls}" data-act="pick" data-date="${key}"${vac ? ` data-vac="${vac.id}"` : ""}>${sea}${confetti}<span class="n">${isHot ? fireBg() : ""}<span class="num">${d.getDate()}</span>${hat}</span>${chips}${more}</button>`;
   }).join("");
 
   const dayList = dayItems.length || dayVacs.length
@@ -512,6 +513,8 @@ async function refresh(animate = false) {
   renderChrome();
   const page = $("#page");
   S.mp = null;
+  // общие «часы» фоновых анимаций: после перерисовки волны, конфетти и огонь продолжают с той же фазы
+  document.documentElement.style.setProperty("--clock", `${-Math.round(performance.now())}ms`);
   page.innerHTML = html;
   if (animate) { page.style.animation = "none"; void page.offsetWidth; page.style.animation = ""; }
   afterRender(page);
@@ -531,6 +534,7 @@ function afterRender(page) {
     S.justDone = null;
   }
   FX.playSeg();
+  FX.boats(page.querySelector(".bigcal"));
 }
 
 function go(page) {
@@ -781,7 +785,7 @@ document.addEventListener("click", async (e) => {
   const date = holder?.dataset.date;
 
   if (!act) return go(el.dataset.page);
-  if (el.matches(".seg button") && !el.classList.contains("on")) FX.captureSeg(el);
+  if (el.matches(".seg button") && !el.classList.contains("on") && !el.closest("#edKinds")) FX.captureSeg(el);
   switch (act) {
     case "add": return openNew(iso(S.page === "home" || S.page === "calendar" ? S.selected : S.today));
     case "add-day": return openNew(el.dataset.date);
@@ -854,10 +858,13 @@ document.addEventListener("click", async (e) => {
     case "ed-important": S.ed.important = !S.ed.important; return renderEdChoices();
     case "ed-repeat": S.ed.repeat = el.dataset.v; renderEdChoices(); return updateEdHead();
     case "ed-kind": {
-      S.ed.kind = el.dataset.v;
-      if (S.ed.kind === "birthday" && !S.ed.id) $("#edTime").value = "10:00";
-      $("#edError").textContent = "";
-      return applyKind();
+      if (S.ed.kind === el.dataset.v) return;
+      return FX.kindSwitch(el.dataset.v, () => {
+        S.ed.kind = el.dataset.v;
+        if (S.ed.kind === "birthday" && !S.ed.id) $("#edTime").value = "10:00";
+        $("#edError").textContent = "";
+        applyKind();
+      });
     }
     case "ed-remind": {
       const off = Number(el.dataset.v), r = S.ed.remind;

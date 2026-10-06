@@ -733,3 +733,82 @@ input[type="date"].input, input[type="time"].input { font-variant-numeric: tabul
 .setting { flex-wrap: wrap; row-gap: 10px; }
 .setting .txt { flex: 1 1 170px; }
 .setting > .seg { margin-left: auto; }
+
+/* ---------- v1.1.1: шапочка, островок, волны, кораблик ---------- */
+svg.isl { width: 16px; height: 16px; flex-shrink: 0; display: inline-block; vertical-align: -3px; }
+.mk svg.isl { width: 13px; height: 13px; vertical-align: -2px; }
+.vac-banner .vb-ic svg.isl { width: 24px; height: 24px; }
+.vac-banner .vb-ic { background: rgba(255, 255, 255, .22); }
+
+/* праздничная шапочка на дате */
+svg.hat { position: absolute; width: 13px; height: 16px; pointer-events: none; z-index: 2;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .35)); transform-origin: 50% 100%; }
+.cell .n svg.hat { top: -8px; right: -7px; transform: rotate(22deg); }
+.day svg.hat { top: -6px; right: 2px; transform: rotate(20deg); width: 12px; height: 15px; }
+.cell .cake, .day .cake { display: none; }
+
+/* ярлык отпуска — справа сверху */
+.vac-label { top: 9px; right: 7px; left: auto; bottom: auto; display: inline-flex; align-items: center; gap: 4px;
+  max-width: calc(100% - 44px); padding: 2px 6px 2px 3px; border-radius: 8px; background: rgba(8, 30, 70, .35); backdrop-filter: blur(4px); }
+.vac-label span { overflow: hidden; text-overflow: ellipsis; }
+[data-theme="light"] .vac-label { background: rgba(14, 116, 200, .55); }
+
+/* волны контрастнее */
+.vac-banner .waves { height: 22px; }
+.vac-banner .waves i:first-child { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 10 Q15 4 30 10 T60 10 V20 H0Z' fill='%23ffffff' fill-opacity='.28'/%3E%3C/svg%3E"); }
+.vac-banner .waves i:last-child { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 13 Q15 18 30 13 T60 13 V20 H0Z' fill='%231E3A8A' fill-opacity='.55'/%3E%3Cpath d='M0 13 Q15 18 30 13 T60 13' fill='none' stroke='%23ffffff' stroke-opacity='.55' stroke-width='1.2'/%3E%3C/svg%3E"); }
+[data-theme="dark"] .cell .sea i:last-child { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 13 Q15 18 30 13 T60 13 V20 H0Z' fill='%2360A5FA' fill-opacity='.7'/%3E%3Cpath d='M0 13 Q15 18 30 13 T60 13' fill='none' stroke='%23E0F2FE' stroke-opacity='.75' stroke-width='1.1'/%3E%3C/svg%3E"); }
+[data-theme="dark"] .cell .sea i:first-child { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 10 Q15 4 30 10 T60 10 V20 H0Z' fill='%2338BDF8' fill-opacity='.5'/%3E%3C/svg%3E"); }
+
+/* кораблик */
+.boat { position: absolute; left: 0; top: 0; width: 24px; height: 20px; z-index: 2; pointer-events: none; opacity: 0; }
+.boat svg { width: 100%; height: 100%; display: block; transform-origin: 50% 90%; animation: bob 2.4s ease-in-out infinite;
+  filter: drop-shadow(0 2px 2px rgba(0, 20, 60, .35)); }
+@keyframes bob { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-2px) rotate(4deg); } }
+
+/* ---------- Смена типа записи: перетекание вкладки и вспышки ---------- */
+@property --r { syntax: "<percentage>"; inherits: false; initial-value: 0%; }
+#edKinds.sliding button.on { background: transparent !important; box-shadow: none !important; }
+.fx-tab { position: absolute; z-index: -1; border-radius: 10px; pointer-events: none; overflow: hidden; }
+.fx-tab > i { position: absolute; inset: 0; opacity: 0; }
+.modal-head .dateblock { position: relative; overflow: hidden; isolation: isolate; }
+.fx-burst, .fx-burst-ring { position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; }
+.fx-burst {
+  -webkit-mask-image: radial-gradient(var(--r) var(--r) at 50% 50%, transparent 92%, #000 100%);
+  mask-image: radial-gradient(var(--r) var(--r) at 50% 50%, transparent 92%, #000 100%);
+}
+.fx-burst-ring {
+  background: radial-gradient(var(--r) var(--r) at 50% 50%, transparent 62%, color-mix(in srgb, var(--kc) 70%, transparent) 78%,
+    color-mix(in srgb, var(--kc) 40%, #fff) 88%, transparent 100%);
+  filter: blur(1px);
+}
+.fx-ember { position: fixed; z-index: 90; width: 6px; height: 9px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; pointer-events: none;
+  background: radial-gradient(circle at 50% 70%, #fff, var(--kc) 60%, color-mix(in srgb, var(--kc) 60%, #000)); box-shadow: 0 0 8px var(--kc); }
+
+/* ---------- Смена темы: горящий край ---------- */
+@property --br { syntax: "<length>"; inherits: false; initial-value: 0px; }
+.fx-burn {
+  position: fixed; inset: -40px; z-index: 9999; pointer-events: none; view-transition-name: burn;
+  background: radial-gradient(circle at calc(var(--x) + 40px) calc(var(--y) + 40px),
+    transparent calc(var(--br) - 60px), rgba(25, 6, 2, .35) calc(var(--br) - 30px), rgba(70, 16, 4, .85) calc(var(--br) - 13px),
+    #C2410C calc(var(--br) - 7px), #FF7A1A calc(var(--br) - 3px), #FFD24D var(--br),
+    rgba(255, 150, 50, .5) calc(var(--br) + 8px), rgba(255, 120, 40, .12) calc(var(--br) + 22px), transparent calc(var(--br) + 34px));
+  filter: url(#burnEdge);
+}
+.fx-cinder { position: absolute; width: 4px; height: 4px; border-radius: 50%; margin: -2px 0 0 -2px;
+  background: radial-gradient(circle, #FFF3C4, #FF9A1F 60%, transparent 70%); box-shadow: 0 0 6px #FF7A1A; }
+::view-transition-group(burn), ::view-transition-old(burn), ::view-transition-new(burn) { animation: none; }
+
+/* ---------- Фоновые анимации не сбрасываются при перерисовке ---------- */
+:root { --clock: 0ms; }
+.waves i:first-child, .sea i:first-child { animation-delay: var(--clock); }
+.waves i:last-child, .sea i:last-child { animation-delay: var(--clock); }
+.confetti i:nth-child(1) { animation-delay: calc(var(--clock) - .4s); }
+.confetti i:nth-child(2) { animation-delay: calc(var(--clock) - 1.7s); }
+.confetti i:nth-child(3) { animation-delay: calc(var(--clock) - 3.1s); }
+.confetti i:nth-child(4) { animation-delay: calc(var(--clock) - 2.2s); }
+.confetti i:nth-child(5) { animation-delay: calc(var(--clock) - .9s); }
+.confetti i:nth-child(6) { animation-delay: calc(var(--clock) - 3.8s); }
+.flame svg, .item .title .fire svg.i { animation-delay: var(--clock); }
+.item.hot:not(.done) { animation-delay: var(--clock); }
+.boat svg { animation-delay: var(--clock); }

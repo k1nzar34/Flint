@@ -163,16 +163,193 @@ const FX = (() => {
     if (sp && !(sp.classList.contains("check") && sp.closest(".item.done"))) sparks(document.body, e.clientX, e.clientY, 0, 5, true);
   }, true);
 
-  /* ---------- Смена темы: круговое раскрытие ---------- */
+  /* ---------- Смена темы: страница «сгорает» от кнопки ---------- */
   async function theme(fromEl, change) {
     if (!on() || !document.startViewTransition || !fromEl) return change();
     const r = fromEl.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
-    const end = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
-    const t = document.startViewTransition(change);
+    const end = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y)) + 40;
+    const dur = Math.max(1400, S.speed * 3.1);
+    const ease = "cubic-bezier(.5,.05,.45,.95)";
+    let burn = null;
+    const t = document.startViewTransition(async () => {
+      await change();
+      if (isLava()) {
+        burn = document.createElement("div");
+        burn.className = "fx-burn";
+        burn.style.setProperty("--x", x + "px");
+        burn.style.setProperty("--y", y + "px");
+        document.body.appendChild(burn);
+      }
+    });
+    t.finished.finally(() => burn && burn.remove());
     await t.ready;
     document.documentElement.animate({ clipPath: [`circle(0 at ${x}px ${y}px)`, `circle(${end}px at ${x}px ${y}px)`] },
-      { duration: Math.max(450, S.speed * 1.3), easing: "cubic-bezier(.6,0,.3,1)", pseudoElement: "::view-transition-new(root)" });
+      { duration: dur, easing: ease, pseudoElement: "::view-transition-new(root)" });
+    if (!burn) return;
+    const front = burn.animate([{ "--br": "0px" }, { "--br": end + "px" }], { duration: dur, easing: ease, fill: "forwards" });
+    // угольки отрываются от горящего края
+    const t0 = performance.now();
+    const tick = () => {
+      const p = (performance.now() - t0) / dur;
+      if (p >= 1 || !burn.isConnected) return;
+      const rad = parseFloat(getComputedStyle(burn).getPropertyValue("--br")) || 0;
+      for (let i = 0; i < 3; i++) {
+        const a = Math.random() * Math.PI * 2, ex = x + Math.cos(a) * rad, ey = y + Math.sin(a) * rad;
+        if (ex < -10 || ey < -10 || ex > innerWidth + 10 || ey > innerHeight + 10) continue;
+        const e = document.createElement("i");
+        e.className = "fx-cinder";
+        Object.assign(e.style, { left: ex + 40 + "px", top: ey + 40 + "px" });
+        burn.appendChild(e);
+        const ox = Math.cos(a) * (10 + Math.random() * 20), oy = Math.sin(a) * (10 + Math.random() * 20) - 18 - Math.random() * 22;
+        e.animate([{ transform: "translate(0,0) scale(1)", opacity: 1 }, { transform: `translate(${ox}px, ${oy}px) scale(.2)`, opacity: 0 }],
+          { duration: 500 + Math.random() * 400, easing: "ease-out" }).onfinish = () => e.remove();
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    await front.finished.catch(() => {});
   }
 
-  return { pour, sparks, captureSeg, playSeg, theme, jsAnims };
+  /* ---------- Кораблик по волнам отпуска ---------- */
+  function boats(grid) {
+    if (!grid || !on()) return;
+    grid.querySelectorAll(".boat").forEach((b) => b.remove());
+    const ids = [...new Set([...grid.querySelectorAll(".cell[data-vac]")].map((c) => c.dataset.vac))];
+    const gb = grid.getBoundingClientRect();
+    ids.forEach((id) => {
+      const cells = [...grid.querySelectorAll(`.cell[data-vac="${id}"]`)];
+      // строки календаря: сегменты по одной неделе
+      const rows = [];
+      cells.forEach((c) => {
+        const r = c.getBoundingClientRect(), top = Math.round(r.top);
+        const row = rows.find((x) => x.top === top);
+        if (row) { row.left = Math.min(row.left, r.left); row.right = Math.max(row.right, r.right); }
+        else rows.push({ top, left: r.left, right: r.right, bottom: r.bottom });
+      });
+      rows.sort((a, b) => a.top - b.top);
+      const BW = 24, BH = 20, SPEED = 34; // px/с
+      const segs = rows.map((r) => ({
+        x1: r.left - gb.left + 4, x2: r.right - gb.left - BW - 4, y: r.bottom - gb.top - BH - 7,
+      })).filter((g) => g.x2 > g.x1);
+      if (!segs.length) return;
+      const FADE = 0.45; // с
+      const durs = segs.map((g) => (g.x2 - g.x1) / SPEED + FADE * 2);
+      const total = durs.reduce((a, b) => a + b, 0);
+      const kf = [];
+      let t = 0;
+      segs.forEach((g, i) => {
+        const d = durs[i], at = (sec) => Math.min(1, (t + sec) / total);
+        const fadeLen = Math.min(SPEED * FADE, (g.x2 - g.x1) / 3);
+        kf.push({ offset: at(0), opacity: 0, transform: `translate(${g.x1}px, ${g.y}px)` });
+        kf.push({ offset: at(FADE), opacity: 1, transform: `translate(${g.x1 + fadeLen}px, ${g.y}px)` });
+        kf.push({ offset: at(d - FADE), opacity: 1, transform: `translate(${g.x2 - fadeLen}px, ${g.y}px)` });
+        kf.push({ offset: at(d), opacity: 0, transform: `translate(${g.x2}px, ${g.y}px)` });
+        t += d;
+      });
+      kf[0].offset = 0; kf[kf.length - 1].offset = 1;
+      const boat = document.createElement("i");
+      boat.className = "boat";
+      boat.innerHTML = '<svg viewBox="0 0 26 22"><use href="#boat"/></svg>';
+      grid.appendChild(boat);
+      const anim = boat.animate(kf, { duration: total * 1000, iterations: Infinity, easing: "linear" });
+      anim.currentTime = performance.now() % (total * 1000); // плывёт дальше, а не с начала, после перерисовки
+    });
+  }
+
+  /* ---------- Смена типа записи в окне ---------- */
+  const KIND_COLOR = { reminder: "#7B6BFF", birthday: "#F5C451", vacation: "#38BDF8" };
+  const ACCENTS = [".modal-head .dateblock", ".modal-actions .btn-primary", "#edPresets button"];
+
+  function kindSwitch(next, apply) {
+    const modal = document.querySelector(".modal");
+    if (!on()) return apply();
+    const tabs = document.querySelector("#edKinds"), oldTab = tabs.querySelector("button.on");
+    const tabRect = oldTab.getBoundingClientRect(), tabBg = getComputedStyle(oldTab).backgroundImage;
+    const oldH = modal.offsetHeight;
+    const shownBefore = new Set([...modal.querySelectorAll("[data-kinds]")].filter((f) => !f.hidden));
+    const before = ACCENTS.map((sel) => [...modal.querySelectorAll(sel)].map((el) => {
+      const cs = getComputedStyle(el);
+      return { bg: cs.backgroundImage, color: cs.backgroundColor };
+    }));
+
+    apply();
+
+    const D = Math.max(420, S.speed);
+    // 1) окно плавно меняет высоту, новые поля мягко проявляются
+    const newH = modal.offsetHeight;
+    if (Math.abs(newH - oldH) > 1) {
+      modal.style.overflow = "hidden";
+      modal.animate([{ height: oldH + "px" }, { height: newH + "px" }], { duration: D, easing: "cubic-bezier(.3,.1,.2,1)" })
+        .onfinish = () => (modal.style.overflow = "");
+    }
+    modal.querySelectorAll("[data-kinds]").forEach((f) => {
+      if (!f.hidden && !shownBefore.has(f)) {
+        f.animate([{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }],
+          { duration: D * .8, delay: D * .25, easing: "ease-out", fill: "backwards" });
+      }
+    });
+
+    // 2) вкладка перетекает прямо из своего цвета в цвет новой
+    const newTab = tabs.querySelector("button.on"), tb = tabs.getBoundingClientRect(), nb = newTab.getBoundingClientRect();
+    tabs.querySelectorAll(".fx-tab").forEach((p) => p.remove());
+    const pill = document.createElement("i");
+    pill.className = "fx-tab";
+    pill.style.backgroundImage = tabBg;
+    pill.innerHTML = `<i style="background-image:${getComputedStyle(newTab).backgroundImage}"></i>`;
+    tabs.appendChild(pill);
+    tabs.classList.add("sliding");
+    const geo = (r) => ({ left: r.left - tb.left + "px", top: r.top - tb.top + "px", width: r.width + "px", height: r.height + "px" });
+    pill.animate([geo(tabRect), geo(nb)], { duration: D * .8, easing: "cubic-bezier(.6,0,.25,1)" }).onfinish = () => {
+      pill.remove(); tabs.classList.remove("sliding");
+    };
+    pill.firstElementChild.animate([{ opacity: 0 }, { opacity: 1 }], { duration: D * .8, easing: "ease-in-out", fill: "forwards" });
+
+    // 3) подсвеченные кнопки: из центра — вспышка, пламя новой вкладки перекрашивает их
+    const kc = KIND_COLOR[next];
+    ACCENTS.forEach((sel, i) => {
+      [...modal.querySelectorAll(sel)].forEach((el, j) => {
+        const old = before[i][j];
+        if (!old || el.offsetParent === null) return;
+        const cur = getComputedStyle(el);
+        if (old.bg === cur.backgroundImage && old.color === cur.backgroundColor) return;
+        const veil = document.createElement("i");
+        veil.className = "fx-burst";
+        veil.style.backgroundImage = old.bg;
+        veil.style.backgroundColor = old.color;
+        const ring = document.createElement("i");
+        ring.className = "fx-burst-ring";
+        ring.style.setProperty("--kc", kc);
+        el.append(veil, ring);
+        const delay = 60 + i * 50 + j * 25;
+        const opts = { duration: D * 1.6, delay, easing: "cubic-bezier(.2,.6,.3,1)", fill: "both" };
+        veil.animate([{ "--r": "0%" }, { "--r": "160%" }], opts).onfinish = () => veil.remove();
+        ring.animate([{ "--r": "0%", opacity: 1 }, { "--r": "150%", opacity: .9, offset: .8 }, { "--r": "170%", opacity: 0 }], opts)
+          .onfinish = () => ring.remove();
+        const r = el.getBoundingClientRect();
+        if (r.width > 40) embers(r.left + r.width / 2, r.top + r.height / 2, kc, delay, Math.min(7, Math.round(r.width / 40) + 3));
+      });
+    });
+  }
+
+  // язычки пламени / брызги цвета вкладки
+  function embers(x, y, color, delay, n) {
+    setTimeout(() => {
+      for (let i = 0; i < n; i++) {
+        const e = document.createElement("span");
+        e.className = "fx-ember";
+        e.style.setProperty("--kc", color);
+        Object.assign(e.style, { left: x - 3 + "px", top: y - 3 + "px" });
+        document.body.appendChild(e);
+        const ang = Math.random() * Math.PI * 2, len = 18 + Math.random() * 26;
+        const ux = Math.cos(ang) * len, uy = Math.sin(ang) * len * .6 - 10;
+        e.animate([
+          { transform: "translate(0,0) scale(.4)", opacity: 1 },
+          { transform: `translate(${ux}px, ${uy}px) scale(1)`, opacity: .95, offset: .45 },
+          { transform: `translate(${ux * 1.2}px, ${uy - 14}px) scale(.2)`, opacity: 0 },
+        ], { duration: 560 + Math.random() * 200, easing: "cubic-bezier(.2,.7,.4,1)" }).onfinish = () => e.remove();
+      }
+    }, delay);
+  }
+
+  return { pour, sparks, captureSeg, playSeg, theme, jsAnims, boats, kindSwitch };
 })();
