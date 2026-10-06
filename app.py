@@ -4,6 +4,7 @@
 Режим разработки в браузере (без pywebview):  python devserver.py
 """
 import json
+import os
 import sys
 import threading
 import time
@@ -22,7 +23,8 @@ except ImportError:  # не Windows
 CHECK_EVERY_SEC = 5
 POPUP_W, POPUP_H = 360, 440
 
-state = {"main": None, "quitting": False}
+state = {"main": None, "quitting": False, "tray": None}
+BASE = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
 
 
 def style_titlebar(theme):
@@ -58,9 +60,40 @@ class MainApi(Api):
         return result
 
     def quit(self):
-        state["quitting"] = True
-        for w in list(webview.windows):
-            w.destroy()
+        quit_app()
+
+
+def quit_app(*_):
+    state["quitting"] = True
+    if state["tray"]:
+        try:
+            state["tray"].stop()
+        except Exception:
+            pass
+    for w in list(webview.windows):
+        w.destroy()
+
+
+def show_main(*_):
+    main = state["main"]
+    if main:
+        main.show()
+        main.restore()
+
+
+def start_tray():
+    """Иконка у часов: клик — открыть окно, правая кнопка — «Открыть / Выход»."""
+    try:
+        import pystray
+        from PIL import Image
+    except ImportError:
+        return None
+    image = Image.open(os.path.join(BASE, "assets", "icon.png"))
+    menu = pystray.Menu(pystray.MenuItem("Открыть", show_main, default=True),
+                        pystray.MenuItem("Выход", quit_app))
+    icon = pystray.Icon("Flint", image, "Flint", menu)
+    icon.run_detached()
+    return icon
 
 
 class PopupApi:
@@ -88,8 +121,7 @@ class PopupApi:
                 if r and self._day not in r.get("done", []):
                     store.toggle_done(self._rid, self._day)
         elif name == "open" and main:
-            main.restore()
-            main.show()
+            show_main()
             main.evaluate_js(f"app.openEditor({json.dumps(self._rid)})")
         refresh_main()
         if self._window:
@@ -139,11 +171,26 @@ def watcher():
         time.sleep(CHECK_EVERY_SEC)
 
 
+def hide_to_tray():
+    main, tray = state["main"], state["tray"]
+    if not tray:  # трея нет (не Windows / нет pystray) — просто сворачиваем
+        main.minimize()
+        return
+    main.hide()
+    if not store.settings.get("tray_hint_shown"):
+        with lock:
+            store.update_settings({"tray_hint_shown": True})
+        try:
+            tray.notify("Flint работает в фоне — ищи огонёк у часов 🔥", "Flint")
+        except Exception:
+            pass
+
+
 def on_closing():
-    # крестик сворачивает окно — напоминания продолжают работать; выход — из настроек
+    # крестик прячет окно в трей — напоминания продолжают работать; выход — из трея или меню
     if state["quitting"]:
         return True
-    threading.Timer(0.05, state["main"].minimize).start()
+    threading.Timer(0.05, hide_to_tray).start()
     return False
 
 
@@ -154,7 +201,15 @@ def main():
     win.events.closing += on_closing
     win.events.shown += lambda: style_titlebar(store.settings["theme"])
     state["main"] = win
-    webview.start(watcher, http_server=True)
+    state["tray"] = start_tray()
+    try:
+        webview.start(watcher, http_server=True)
+    finally:
+        if state["tray"]:
+            try:
+                state["tray"].stop()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":

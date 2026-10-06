@@ -57,6 +57,8 @@ jobs:
           pyinstaller --noconsole --onefile --name Flint
           --icon assets/icon.ico
           --add-data "ui;ui"
+          --add-data "assets/icon.png;assets"
+          --hidden-import pystray._win32
           app.py
 
       - name: Smoke check

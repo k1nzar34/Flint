@@ -45,6 +45,7 @@ DEFAULT_SETTINGS = {
     "autostart": False,
     "anim_effect": "lava",          # lava / plain / off
     "anim_speed": "normal",         # fast / normal / slow
+    "tray_hint_shown": False,       # подсказку «Flint работает в фоне» показали
 }
 
 
