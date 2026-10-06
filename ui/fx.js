@@ -164,8 +164,16 @@ const FX = (() => {
   }, true);
 
   /* ---------- Смена темы: страница «сгорает» от кнопки ---------- */
+  let burning = false;
   async function theme(fromEl, change) {
-    if (!on() || !document.startViewTransition || !fromEl) return change();
+    if (burning) return; // повторный клик посреди перехода ломал его — игнорируем
+    if (!on() || !document.startViewTransition || !fromEl) { await change(); return titlebar(); }
+    burning = true;
+    try { await burnTheme(fromEl, change); } finally { burning = false; titlebar(); }
+  }
+  // цвет заголовка окна Windows меняем уже после перехода: перерисовка рамки посреди анимации давала вспышку
+  const titlebar = () => window.pywebview?.api?.titlebar?.();
+  async function burnTheme(fromEl, change) {
     const r = fromEl.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
     const end = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y)) + 40;
     const dur = Math.max(1400, S.speed * 3.1);
@@ -182,10 +190,10 @@ const FX = (() => {
       }
     });
     t.finished.finally(() => burn && burn.remove());
-    await t.ready;
+    try { await t.ready; } catch { return; }
     document.documentElement.animate({ clipPath: [`circle(0 at ${x}px ${y}px)`, `circle(${end}px at ${x}px ${y}px)`] },
       { duration: dur, easing: ease, pseudoElement: "::view-transition-new(root)" });
-    if (!burn) return;
+    if (!burn) return t.finished.catch(() => {});
     const front = burn.animate([{ "--br": "0px" }, { "--br": end + "px" }], { duration: dur, easing: ease, fill: "forwards" });
     // угольки отрываются от горящего края
     const t0 = performance.now();
@@ -193,7 +201,7 @@ const FX = (() => {
       const p = (performance.now() - t0) / dur;
       if (p >= 1 || !burn.isConnected) return;
       const rad = parseFloat(getComputedStyle(burn).getPropertyValue("--br")) || 0;
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 4; i++) {
         const a = Math.random() * Math.PI * 2, ex = x + Math.cos(a) * rad, ey = y + Math.sin(a) * rad;
         if (ex < -10 || ey < -10 || ex > innerWidth + 10 || ey > innerHeight + 10) continue;
         const e = document.createElement("i");
@@ -201,13 +209,14 @@ const FX = (() => {
         Object.assign(e.style, { left: ex + 40 + "px", top: ey + 40 + "px" });
         burn.appendChild(e);
         const ox = Math.cos(a) * (10 + Math.random() * 20), oy = Math.sin(a) * (10 + Math.random() * 20) - 18 - Math.random() * 22;
-        e.animate([{ transform: "translate(0,0) scale(1)", opacity: 1 }, { transform: `translate(${ox}px, ${oy}px) scale(.2)`, opacity: 0 }],
+        e.animate([{ transform: "translate(0,0) scale(1)", opacity: 1 }, { transform: `translate(${ox}px, ${oy}px) scale(.35)`, opacity: 0 }],
           { duration: 500 + Math.random() * 400, easing: "ease-out" }).onfinish = () => e.remove();
       }
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
     await front.finished.catch(() => {});
+    await t.finished.catch(() => {});
   }
 
   /* ---------- Кораблик по дальней волне отпуска ---------- */

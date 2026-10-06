@@ -47,17 +47,15 @@ def style_titlebar(theme):
         dwm.DwmSetWindowAttribute(hwnd, 35, ctypes.byref(caption), 4)  # DWMWA_CAPTION_COLOR
         dwm.DwmSetWindowAttribute(hwnd, 34, ctypes.byref(caption), 4)  # DWMWA_BORDER_COLOR
         dwm.DwmSetWindowAttribute(hwnd, 36, ctypes.byref(text), 4)     # DWMWA_TEXT_COLOR
-        ctypes.windll.user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0027)  # перерисовать рамку
+        ctypes.windll.user32.RedrawWindow(hwnd, None, None, 0x0401)  # перерисовать только рамку (RDW_FRAME | RDW_INVALIDATE)
     except Exception:
         pass
 
 
 class MainApi(Api):
-    def save_settings(self, values):
-        result = super().save_settings(values)
-        if "theme" in values:
-            style_titlebar(store.settings["theme"])
-        return result
+    def titlebar(self):
+        style_titlebar(store.settings["theme"])
+        return True
 
     def quit(self):
         quit_app()
