@@ -219,6 +219,58 @@ const FX = (() => {
     await t.finished.catch(() => {});
   }
 
+  /* ---------- Салют при добавлении дня рождения ---------- */
+  function salute() {
+    if (!on()) return;
+    const layer = document.createElement("div");
+    layer.className = "fx-salute";
+    document.body.appendChild(layer);
+    const PAL = [["#FFD978", "#F5C451"], ["#FF8CC6", "#FF5C8A"], ["#7DD3FC", "#5E6BFF"], ["#86EFAC", "#35D49A"], ["#FDBA74", "#FF7A1A"]];
+    const W = innerWidth, H = innerHeight, shots = 4;
+    let left = shots;
+    for (let k = 0; k < shots; k++) {
+      const x = W * (0.2 + 0.6 * ((k * 0.37 + Math.random() * 0.25) % 1)), y = H * (0.16 + Math.random() * 0.22);
+      const [c1, c2] = PAL[(k + Math.floor(Math.random() * 5)) % 5];
+      setTimeout(() => {
+        const rocket = document.createElement("i");
+        rocket.className = "fx-rocket";
+        rocket.style.setProperty("--c", c1);
+        layer.appendChild(rocket);
+        rocket.animate([{ transform: `translate(${x}px, ${H + 10}px) scaleY(2.2)`, opacity: 1 },
+          { transform: `translate(${x}px, ${y}px) scaleY(1)`, opacity: 1 }], { duration: 620, easing: "cubic-bezier(.2,.6,.35,1)" })
+          .onfinish = () => {
+            rocket.remove();
+            const flash = document.createElement("i");
+            flash.className = "fx-flash";
+            Object.assign(flash.style, { left: x + "px", top: y + "px" });
+            flash.style.setProperty("--c", c1);
+            layer.appendChild(flash);
+            flash.animate([{ transform: "translate(-50%,-50%) scale(.2)", opacity: .9 }, { transform: "translate(-50%,-50%) scale(1.6)", opacity: 0 }],
+              { duration: 520, easing: "ease-out" }).onfinish = () => flash.remove();
+            const N = 30, R = 80 + Math.random() * 50;
+            let alive = N;
+            for (let i = 0; i < N; i++) {
+              const a = (i / N) * Math.PI * 2 + Math.random() * 0.2, r = R * (0.75 + Math.random() * 0.35);
+              const dx = Math.cos(a) * r, dy = Math.sin(a) * r;
+              const p = document.createElement("i");
+              p.className = "fx-spark-s";
+              p.style.setProperty("--c", i % 3 ? c1 : c2);
+              Object.assign(p.style, { left: x + "px", top: y + "px" });
+              layer.appendChild(p);
+              p.animate([
+                { transform: "translate(-50%,-50%) scale(1)", opacity: 1 },
+                { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(1)`, opacity: 1, offset: .45 },
+                { transform: `translate(calc(-50% + ${dx * 1.1}px), calc(-50% + ${dy + 70}px)) scale(.3)`, opacity: 0 },
+              ], { duration: 1300 + Math.random() * 400, easing: "cubic-bezier(.15,.7,.35,1)" }).onfinish = () => {
+                p.remove();
+                if (--alive === 0 && --left === 0) layer.remove();
+              };
+            }
+          };
+      }, k * 260 + Math.random() * 120);
+    }
+  }
+
   /* ---------- Кораблик по дальней волне отпуска ---------- */
   // Кораблик живёт внутри каждой плитки отпуска (между дальней и ближней волной) и обрезается её краями,
   // поэтому плывёт «в море» плиток, а не поверх промежутков. Все копии двигаются по одному общему пути.
@@ -382,5 +434,5 @@ const FX = (() => {
     }, delay);
   }
 
-  return { pour, sparks, captureSeg, playSeg, theme, jsAnims, boats, kindSwitch };
+  return { pour, sparks, captureSeg, playSeg, theme, jsAnims, boats, kindSwitch, salute };
 })();

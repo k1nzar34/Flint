@@ -123,6 +123,7 @@ function bdayRow(it, withDate) {
   const left = withDate ? dateBlock(d).replace('class="dateblock', 'class="dateblock gold') : "";
   const meta = withDate ? `${relDay(d)} · ${ageText(it)}` : ageText(it);
   return `<div class="item bday" data-id="${it.id}" data-date="${it.date}">
+    <span class="confetti" aria-hidden="true">${"<i></i>".repeat(6)}</span>
     <span class="bday-ic">${icon("cake")}</span>
     ${left}
     <div class="body" data-act="edit">
@@ -144,7 +145,7 @@ function vacRange(v) {
 
 function vacBanner(v) {
   return `<button class="vac-banner" data-act="edit" data-id="${v.id}">
-    <span class="waves" aria-hidden="true"><i></i><i></i></span>
+    <span class="waves" aria-hidden="true"><i></i><span class="boat sail"><svg viewBox="0 0 26 22"><use href="#boat"/></svg></span><i></i></span>
     <span class="vb-ic"><svg class="isl" viewBox="0 0 24 24"><use href="#island"/></svg></span>
     <span class="vb-txt"><b>${esc(v.title)}</b><small>${vacRange(v)}${v.mute_work ? " · работа на паузе" : ""}</small></span>
   </button>`;
@@ -205,9 +206,9 @@ function miniCal(info) {
     const dots = n ? `<span class="dot">${"<i></i>".repeat(n)}</span>` : "";
     const flame = isHot ? fireBg() : "";
     const title = bd ? ` title="🎂 ${esc(bd.join(", "))}"` : "";
-    return `<button class="${cls}" data-act="pick" data-date="${key}"${title}>${flame}<span class="num">${d.getDate()}</span>${dots}${bd ? '<svg class="hat" viewBox="0 0 20 24" aria-hidden="true"><use href="#party-hat"/></svg>' : ""}</button>`;
+    return `<button class="${cls}" data-act="pick" data-date="${key}"${title}>${flame}<span class="num">${d.getDate()}</span>${dots}</button>`;
   }).join("");
-  return calHead() + `<div class="cal">${head}${days}</div>`;
+  return calHead() + `<div class="cal mini">${head}${days}</div>`;
 }
 
 function ringSvg(pct, id) {
@@ -341,7 +342,7 @@ async function renderCalendar() {
     const more = list.length > max ? `<span class="more-n">ещё ${list.length - max}</span>` : "";
     const sea = vac ? `<span class="sea" aria-hidden="true"><i></i><i></i></span>${vs ? `<span class="vac-label" title="${esc(vac.title)}"><svg class="isl" viewBox="0 0 24 24"><use href="#island"/></svg><span>${esc(vac.title)}</span></span>` : ""}` : "";
     const confetti = isBday ? `<span class="confetti" aria-hidden="true">${"<i></i>".repeat(6)}</span>` : "";
-    const hat = isBday && !isHot ? '<svg class="hat" viewBox="0 0 20 24" aria-hidden="true"><use href="#party-hat"/></svg>' : "";
+    const hat = isBday && !isHot ? '<svg class="hat" viewBox="0 0 28 33" aria-hidden="true"><use href="#party-hat"/></svg>' : "";
     return `<button class="${cls}" data-act="pick" data-date="${key}"${vac ? ` data-vac="${vac.id}"` : ""}>${sea}${confetti}<span class="n">${isHot ? fireBg() : ""}<span class="num">${d.getDate()}</span>${hat}</span>${chips}${more}</button>`;
   }).join("");
 
@@ -729,6 +730,7 @@ async function saveEditor() {
   closeEditor();
   select(res.date);
   toast(ed.id ? "Изменения сохранены" : KIND_UI[ed.kind].saved);
+  if (!ed.id && ed.kind === "birthday" && S.anim !== "off") FX.salute(); // салют — только для нового ДР
   refresh();
 }
 
