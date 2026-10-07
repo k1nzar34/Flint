@@ -309,6 +309,7 @@ svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-widt
 
 /* ---------- Настройки ---------- */
 .settings { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.settings > .col { display: flex; flex-direction: column; gap: 20px; min-width: 0; } /* колонки независимы: карточка справа растёт, слева ничего не съезжает */
 .setting { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-top: 1px solid var(--border); }
 .setting:first-of-type { border-top: 0; padding-top: 0; }
 .setting .ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); flex-shrink: 0; }
@@ -851,12 +852,6 @@ svg.hat { position: absolute; width: 13px; height: 16px; pointer-events: none; z
 [data-theme="light"] .cal.mini .day.vac:not(.sel) { background: rgba(14, 165, 233, .13); }
 .cal.mini .day.vac:not(.sel):not(.bday) { color: var(--sea); font-weight: 650; }
 [data-theme="dark"] .cal.mini .day.vac:not(.sel):not(.bday) { color: #7DD3FC; }
-.cal.mini .day.bday:not(.sel) { background: none; color: #E9B23C; font-weight: 750; box-shadow: inset 0 0 0 2px #F5C451; }
-[data-theme="light"] .cal.mini .day.bday:not(.sel) { color: #B7791F; box-shadow: inset 0 0 0 2px #E9B23C; }
-.cal.mini .day.bday.vac:not(.sel) { background: rgba(56, 189, 248, .16); }
-.cal.mini .day.bday.today:not(.sel) { box-shadow: inset 0 0 0 2px #F5C451, 0 0 0 2px var(--accent); }
-.cal.mini .day.bday.sel { box-shadow: 0 0 0 2px var(--card), 0 0 0 4px #F5C451, var(--glow); }
-.cal.mini .day.bday.out:not(.sel) { opacity: .55; }
 .cal.mini .day .flame { width: 11px; height: 14px; left: auto; right: 1px; top: 1px; transform: none; }
 .cal.mini .day.hot:not(.sel) { color: inherit; font-weight: 650; }
 .cal.mini .day.hot .num { font-size: inherit; letter-spacing: 0; transform: none; text-shadow: none; }
@@ -882,3 +877,139 @@ svg.hat { position: absolute; width: 13px; height: 16px; pointer-events: none; z
 @keyframes sail { 0% { left: -30px; opacity: 0; } 4% { opacity: 1; } 96% { opacity: 1; } 100% { left: calc(100% + 8px); opacity: 0; } }
 .anim-off .vac-banner .boat.sail { animation: none; left: 70%; }
 .vac-banner > :not(.waves) { position: relative; z-index: 1; } /* текст поверх проплывающего кораблика */
+
+/* «Эта неделя»: цифры рядом с подписями */
+.mini-stats { flex: 0 1 240px; max-width: 240px; }
+
+/* время в редакторе — одна строка, выбранное подсвечено */
+#edPresets { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; }
+#edPresets button { padding-left: 0; padding-right: 0; text-align: center; }
+#edPresets button.on { background: var(--grad); color: #fff; box-shadow: var(--glow); }
+
+/* «Откладывать на»: длинные варианты в выпадашке */
+.seg.snz { position: relative; overflow: visible; }
+.snz-btn { display: inline-flex; align-items: center; gap: 4px; }
+.snz-btn svg.i { width: 14px; height: 14px; }
+.snz-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 130px; padding: 5px; border-radius: 12px;
+  background: var(--card-2); border: 1px solid var(--border-2); box-shadow: 0 14px 40px rgba(0, 0, 0, .35); display: flex; flex-direction: column; }
+.snz-pop[hidden] { display: none; }
+.snz-pop button { text-align: left; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text); }
+.snz-pop button:hover { background: var(--hover); }
+.snz-pop button.on { background: var(--accent-soft); color: var(--accent); }
+.setting .ic svg.isl { width: 22px; height: 22px; }
+.modal[data-kind="birthday"] #edPresets button.on { background: var(--gold-grad); color: var(--gold-ink); box-shadow: 0 6px 16px rgba(245, 196, 81, .35); }
+
+/* ---------- Светлая тема: контрастнее и отпуск заметнее ---------- */
+[data-theme="light"] {
+  --bg: #ECEEF8; --card-3: #E7EAF7;
+  --border: rgba(30, 36, 90, .13); --border-2: rgba(30, 36, 90, .2);
+  --shadow: 0 1px 2px rgba(30, 36, 90, .06), 0 10px 28px rgba(30, 36, 90, .10);
+}
+[data-theme="light"] .cell { border-color: rgba(30, 36, 90, .09); }
+[data-theme="light"] .cell.out { border-color: transparent; }
+[data-theme="light"] .cell.bday { border-color: rgba(227, 154, 44, .6); }
+[data-theme="light"] .cell.sel { border-color: var(--accent); }
+[data-theme="light"] .sidebar { box-shadow: 1px 0 0 rgba(30, 36, 90, .10), 6px 0 24px rgba(30, 36, 90, .05); }
+[data-theme="light"] .item { border-color: rgba(30, 36, 90, .12); }
+[data-theme="light"] .item.bday { border-color: rgba(227, 154, 44, .55); }
+[data-theme="light"] .cal.mini .day.vac:not(.sel) { background: rgba(14, 165, 233, .19); box-shadow: inset 0 0 0 1px rgba(14, 165, 233, .35); }
+[data-theme="light"] .cal.mini .day.vac:not(.sel):not(.bday) { color: #0369A1; }
+[data-theme="light"] .cell.vac { background: linear-gradient(180deg, rgba(56, 189, 248, .22), rgba(37, 99, 235, .27)); border-color: rgba(14, 165, 233, .55); }
+[data-theme="light"] .cell.vac.sel { border-color: var(--accent); }
+[data-theme="light"] .cell.vac.sel { background: linear-gradient(180deg, rgba(94, 107, 255, .2), rgba(37, 99, 235, .28)); }
+
+/* ---------- Мини-календарь: ДР залит золотом, выбранный — фиолетовое кольцо ---------- */
+@property --ra { syntax: "<angle>"; inherits: false; initial-value: 360deg; }
+.cal.mini .day.bday, .cal.mini .day.bday.sel, .cal.mini.pouring .day.bday.sel {
+  background: var(--gold-grad) !important; color: var(--gold-ink) !important; font-weight: 750;
+  box-shadow: 0 4px 12px rgba(245, 196, 81, .3) !important; }
+.cal.mini .day.bday.out:not(.sel) { opacity: .55; }
+.cal.mini .day.bday.today:not(.sel) { box-shadow: inset 0 0 0 2px var(--accent), 0 4px 12px rgba(245, 196, 81, .3) !important; }
+.cal.mini .day.bday.sel::after, .ring-out {
+  content: ""; position: absolute; inset: -4px; border-radius: 16px; border: 2.5px solid #7B5CFF; pointer-events: none;
+  box-shadow: inset 0 0 8px rgba(123, 92, 255, .55);
+  -webkit-mask: conic-gradient(#000 var(--ra), transparent 0); mask: conic-gradient(#000 var(--ra), transparent 0); }
+.cal.mini .day.bday.sel.ring-in::after { animation: ringDraw .55s cubic-bezier(.4, 0, .2, 1) var(--rd, 0ms) both; }
+@keyframes ringDraw { from { --ra: 0deg; } to { --ra: 360deg; } }
+.cal.mini .day.bday.sel.ring-in { animation: ringFlash .5s ease-out calc(var(--rd, 0ms) + .5s) both; }
+@keyframes ringFlash { 0% { filter: none; } 40% { filter: drop-shadow(0 0 10px rgba(123, 92, 255, .9)); } 100% { filter: none; } }
+/* пока переливается лава — у дня отпуска остаётся его голубой фон */
+.cal.mini.pouring .day.sel.vac:not(.bday) { background: rgba(56, 189, 248, .16) !important; }
+[data-theme="light"] .cal.mini.pouring .day.sel.vac:not(.bday) { background: rgba(14, 165, 233, .19) !important; box-shadow: inset 0 0 0 1px rgba(14, 165, 233, .35) !important; }
+.cal.mini.pouring .day.sel.vac:not(.bday) { color: #7DD3FC !important; }
+[data-theme="light"] .cal.mini.pouring .day.sel.vac:not(.bday) { color: #0369A1 !important; }
+
+/* тихая подсказка в редакторе отпуска */
+.ed-hint { display: flex; gap: 6px; align-items: flex-start; margin-top: -4px; font-size: 12px; line-height: 1.4; color: var(--muted); }
+.ed-hint[hidden] { display: none; }
+.ed-hint svg.i { width: 14px; height: 14px; flex: none; margin-top: 1px; }
+
+/* ---------- Баннер отпуска: пляж ---------- */
+.vac-banner { padding-bottom: 44px; }
+.vac-banner > .beach { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.vac-banner .vb-ic { background: #EEF3F9; box-shadow: 0 2px 6px rgba(8, 30, 70, .22); }
+.b-sun { position: absolute; right: 14px; top: -4px; width: 46px; height: 46px; }
+.b-sun .ra, .b-sun .rb { transform-box: fill-box; transform-origin: 50% 100%; animation: ray 4s ease-in-out infinite; animation-delay: var(--clock); }
+.b-sun .rb { animation-delay: calc(var(--clock) - 2s); }
+@keyframes ray { 0%, 100% { transform: scaleY(.45); } 50% { transform: scaleY(1.15); } }
+/* чайки летят к солнцу, уменьшаются и тают, не долетая до него; потом долгая пауза */
+.b-gull { position: absolute; left: 50%; top: 24px; width: 24px; height: 12px; opacity: 0; animation: toSun 24s linear infinite; animation-delay: var(--clock); }
+.b-gull.g2 { top: 36px; width: 17px; height: 9px; animation-delay: calc(var(--clock) - 1.6s); }
+@keyframes toSun {
+  0% { left: 50%; transform: translateY(6px) scale(1.15); opacity: 0; }
+  2% { opacity: 1; }
+  26% { left: calc(100% - 120px); transform: translateY(-18px) scale(.25); opacity: .9; }
+  31%, 100% { left: calc(100% - 102px); transform: translateY(-22px) scale(.08); opacity: 0; }
+}
+.b-gull .wing { transform-origin: 12px 7px; animation: flap .5s ease-in-out infinite; }
+@keyframes flap { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(.35); } }
+.b-sea { position: absolute; left: 0; right: 0; bottom: 17px; height: 19px; background: linear-gradient(180deg, #0E7FC7, #0B5FA5); overflow: hidden; }
+.b-sea i { position: absolute; left: 0; right: 0; height: 6px; background-repeat: repeat-x; background-size: 40px 6px; animation: waveMove 6s linear infinite;
+  animation-delay: var(--clock);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 6'%3E%3Cpath d='M0 4 Q10 0 20 4 T40 4' stroke='%23ffffff' stroke-opacity='.8' stroke-width='1.4' fill='none'/%3E%3C/svg%3E"); }
+.b-sea i:first-child { top: 2px; opacity: .7; }
+.b-sea i:last-child { top: 9px; animation-direction: reverse; animation-duration: 4.4s; }
+.b-sand { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 27px; }
+.b-crab { animation: crab 14s ease-in-out infinite; animation-delay: var(--clock); }
+@keyframes crab { 0%, 100% { transform: translateX(250px); } 50% { transform: translateX(290px); } }
+.b-crab-b { animation: scuttle .35s steps(2) infinite; }
+@keyframes scuttle { 50% { transform: translateY(-1px); } }
+
+/* ---------- Кораблик в плитках: крупнее и сидит в волнах ---------- */
+.cell .boat { top: -8px; width: 27px; height: 23px; }
+
+/* ---------- «Живые картинки» выключены: всё замирает на месте ---------- */
+.live-off .sea i, .live-off .boat svg, .live-off .confetti i, .live-off .beach *, .live-off .cake * { animation-play-state: paused !important; }
+
+/* ---------- Карточка ДР: торт выглядывает снизу ---------- */
+.item.bday { --icing: #FFF3E0; }
+[data-theme="light"] .item.bday { --icing: #6B3A1E; }
+.item.bday > .confetti, .item.bday > .cake { position: absolute; }
+.item.bday > .confetti { z-index: 0; }
+.item.bday .confetti i { width: 4px; height: 7px; }
+.item.bday > .cake { right: 66px; bottom: -12px; width: 210px; height: 100px; z-index: 0; pointer-events: none;
+  filter: drop-shadow(0 -2px 10px rgba(255, 127, 163, .22)); }
+.compact .item.bday > .cake { right: 40px; width: 116px; height: 56px; bottom: -7px; }
+.cake .ic { fill: var(--icing); }
+.cake .fl { animation: flick 1.1s ease-in-out infinite; }
+@keyframes flick { 0%, 100% { transform: scale(1, 1) rotate(-3deg); } 50% { transform: scale(.88, 1.1) rotate(3deg); } }
+.cake .cake-glow { fill: #FFB020; opacity: .1; animation: cakeGlow 1.1s ease-in-out infinite; animation-delay: var(--clock); }
+[data-theme="light"] .cake .cake-glow { opacity: .14; }
+@keyframes cakeGlow { 0%, 100% { opacity: .07; } 50% { opacity: .16; } }
+.cake .sp { animation: tw 4s ease-in-out infinite; }
+@keyframes tw { 0%, 85%, 100% { opacity: 1; } 92% { opacity: .35; } }
+.cake .sp.near { animation: glint 1.1s ease-in-out infinite; }
+@keyframes glint { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.8) drop-shadow(0 0 2px #FFD24D); } }
+.cake .smoke { opacity: 0; }
+/* навёл на карточку — свечи задуваются, идёт дымок, через секунду огоньки загораются снова */
+.item.bday:hover .cake .fl { animation: blowout 2s ease-out both; animation-delay: 0s !important; }
+.item.bday:hover .cake .smoke { animation: smoke 1.7s ease-out .12s both; }
+@keyframes blowout { 0% { transform: scale(1); opacity: 1; } 10% { transform: scale(.3, 0) translateY(-4px); opacity: 0; }
+  62% { transform: scale(.2, 0); opacity: 0; } 78% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes smoke { 0% { opacity: 0; transform: translateY(0) scaleY(.4); } 18% { opacity: .85; } 100% { opacity: 0; transform: translateY(-14px) scaleY(1.1); } }
+.bday-ic { width: 38px; height: 38px; border-radius: 12px; }
+.bday-ic svg.i { width: 22px; height: 22px; }
+.live-off .item.bday:hover .cake .fl, .live-off .item.bday:hover .cake .smoke { animation: none !important; }
+.live-off .item.bday:hover .cake .smoke { opacity: 0; }
+.setting:has(.snz) { position: relative; z-index: 20; }
+.seg.snz { z-index: 20; }

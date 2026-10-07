@@ -21,7 +21,7 @@ const WD = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 const WD_FULL = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
 const CAT_COLORS = { work: "#4C8DFF", health: "#2ECDB5", personal: "#FF5C8A", home: "#3DD68C", growth: "#A27BFF" };
 const IMPORTANT = "#FF7A1A"; // приоритет — «огонёк»
-const TIME_PRESETS = ["09:00", "12:00", "15:00", "18:00", "21:00"];
+const TIME_PRESETS = ["06:00", "08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00"];
 const PAGES = {
   home: null,
   calendar: ["Календарь", "Планируй дни и недели наперёд"],
@@ -118,12 +118,58 @@ function ageText(it) {
   return it.date === iso(S.today) ? `Сегодня исполняется ${it.age} 🎉` : `Исполнится ${it.age}`;
 }
 
+/* ---------- Торт, выглядывающий снизу карточки ДР ---------- */
+const SPRINKLES = [[40, 38, 20], [58, 32, -30], [70, 48, 60], [150, 33, -15], [168, 44, 35], [186, 37, -50], [100, 54, 10], [126, 28, 80],
+  [150, 52, -40], [52, 48, 0], [176, 30, 15], [122, 55, -70], [84, 30, 40], [30, 44, -20], [196, 42, 70], [140, 42, 5]];
+const SPR_COLORS = ["#FF4F8B", "#38BDF8", "#FFD24D", "#B26BFF", "#4ADE80", "#FFFFFF"];
+const DRIP = [7, 12, 5, 10, 15, 6, 11, 8, 13, 5, 9, 14, 7, 11, 6, 12, 8, 10];
+const CAKE_BODY = (() => {
+  let drips = "";
+  for (let i = 0, x = 18; x < 206; x += 11, i++) {
+    const y = 42 + 22 * Math.sqrt(Math.max(0, 1 - ((x - 110) / 100) ** 2)), L = DRIP[i % DRIP.length];
+    drips += `<rect x="${x - 4.5}" y="${(y - 6).toFixed(1)}" width="9" height="${L + 6}" rx="4.5" class="ic"/>`;
+  }
+  const spr = SPRINKLES.map(([x, y, r], i) => `<rect class="sp${i % 3 === 0 ? " near" : ""}" x="${x}" y="${y}" width="6.5" height="2.4" rx="1.2" fill="${SPR_COLORS[i % 6]}" transform="rotate(${r} ${x} ${y})" style="animation-delay:calc(var(--clock) - ${((i * .61) % 4).toFixed(2)}s)"/>`).join("");
+  return `<path d="M10 42 V104 H210 V42 A100 22 0 0 1 10 42Z" fill="#FF7FA3"/>
+    <path d="M10 42 V104 H40 V60 A100 22 0 0 1 10 42Z" fill="#000" opacity=".08"/>
+    <circle cx="50" cy="84" r="2.6" fill="#fff"/><circle cx="80" cy="94" r="2.6" fill="#FFD24D"/><circle cx="112" cy="86" r="2.6" fill="#7DD3FC"/><circle cx="146" cy="95" r="2.6" fill="#fff"/><circle cx="178" cy="85" r="2.6" fill="#C45CFF"/>
+    <ellipse class="ic" cx="110" cy="42" rx="100" ry="22"/>${drips}<ellipse class="cake-glow" cx="110" cy="38" rx="46" ry="10"/>${spr}`;
+})();
+function flame(x, top, i) {
+  return `<path d="M${x} ${top} v-3.2" stroke="#3B2A1A" stroke-width="1.3" stroke-linecap="round"/>
+    <g class="fl" style="transform-origin:${x}px ${top - 5}px;animation-delay:calc(var(--clock) - ${(i * .37).toFixed(2)}s)"><ellipse cx="${x}" cy="${top - 8}" rx="6" ry="8" fill="#FFB020" opacity=".18"/>
+    <path d="M${x} ${top - 15} q4.2 5.4 0 10.2 q-4.2-4.8 0-10.2z" fill="#FFB020"/><path d="M${x} ${top - 11} q2 2.6 0 5 q-2-2.4 0-5z" fill="#FFF3B0"/></g>
+    <g class="smoke" style="transform-origin:${x}px ${top - 4}px"><path d="M${x} ${top - 4} q-3 -5 0 -9 q3 -4 0 -9" stroke="#CBD5E1" stroke-width="1.6" fill="none" stroke-linecap="round"/></g>`;
+}
+function cakeSvg(age) {
+  let candles = "";
+  const digits = age ? String(age).slice(0, 3) : "";
+  if (digits) {
+    const step = 28, x0 = 110 - (digits.length - 1) * step / 2;
+    [...digits].forEach((c, i) => {
+      const x = x0 + i * step;
+      candles += `<ellipse cx="${x}" cy="42" rx="4" ry="1.4" fill="rgba(0,0,0,.25)"/><rect x="${x - 1.6}" y="31" width="3.2" height="11" rx="1" fill="#D1D5DB" stroke="#6B7280" stroke-width=".6"/>
+        <text x="${x}" y="35" text-anchor="middle" font-size="26" font-weight="900" fill="#FFD24D" stroke="#C2410C" stroke-width="1.5" font-family="Arial Black, Arial, sans-serif">${c}</text>${flame(x, 15, i)}`;
+    });
+  } else {
+    [[82, 40, "#7DD3FC"], [110, 45, "#FF5C8A"], [138, 40, "#86EFAC"]].forEach(([x, y, col], i) => {
+      candles += `<ellipse cx="${x}" cy="${y}" rx="4.4" ry="1.5" fill="rgba(0,0,0,.25)"/><rect x="${x - 2.6}" y="${y - 24}" width="5.2" height="24" rx="1.6" fill="${col}"/>
+        <path d="M${x - 2.6} ${y - 19} l5.2 -2.4 M${x - 2.6} ${y - 12} l5.2 -2.4 M${x - 2.6} ${y - 5} l5.2 -2.4" stroke="#fff" stroke-width="1.3"/>${flame(x, y - 24, i)}`;
+    });
+  }
+  return `<svg class="cake" viewBox="0 0 220 104" preserveAspectRatio="xMidYMax meet" aria-hidden="true">${CAKE_BODY}${candles}</svg>`;
+}
+const CONFETTI_16 = [[6, "#FF5C8A", .3, 4.6], [14, "#5E6BFF", 2.1, 5.2], [22, "#35D49A", 3.4, 4.2], [30, "#F5C451", 1.2, 5.8], [38, "#FF7A1A", 4.1, 4.8],
+  [46, "#A27BFF", .8, 5.4], [54, "#38BDF8", 2.8, 4.4], [62, "#FF5C8A", 3.9, 5], [70, "#F5C451", 1.6, 4.7], [78, "#35D49A", .5, 5.6], [86, "#5E6BFF", 3.1, 4.3],
+  [94, "#FF7A1A", 2.4, 5.1], [18, "#F5C451", 4.6, 5.9], [42, "#FF5C8A", 5.2, 4.9], [66, "#A27BFF", 4.4, 5.3], [90, "#38BDF8", 1.9, 4.5]]
+  .map(([l, c, d, t]) => `<i style="left:${l}%;background:${c};animation-duration:${t}s;animation-delay:calc(var(--clock) - ${d}s)"></i>`).join("");
+
 function bdayRow(it, withDate) {
   const d = parse(it.date);
   const left = withDate ? dateBlock(d).replace('class="dateblock', 'class="dateblock gold') : "";
   const meta = withDate ? `${relDay(d)} · ${ageText(it)}` : ageText(it);
   return `<div class="item bday" data-id="${it.id}" data-date="${it.date}">
-    <span class="confetti" aria-hidden="true">${"<i></i>".repeat(6)}</span>
+    <span class="confetti" aria-hidden="true">${CONFETTI_16}</span>${cakeSvg(it.age)}
     <span class="bday-ic">${icon("cake")}</span>
     ${left}
     <div class="body" data-act="edit">
@@ -143,9 +189,49 @@ function vacRange(v) {
   return `${range} · ${n} ${plural(n, "день", "дня", "дней")}`;
 }
 
+/* ---------- Пляж в баннере отпуска: у каждого отпуска свой узор ракушек ---------- */
+function seeded(str) {
+  let h = 2166136261;
+  for (const ch of String(str)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  return () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296; };
+}
+const SHELL_COLORS = [["#FBCFE8", "#DB2777"], ["#FED7AA", "#EA580C"], ["#FDE68A", "#D97706"], ["#E0F2FE", "#0284C7"]];
+const PEBBLES = ["#94A3B8", "#78716C", "#A8A29E", "#64748B"];
+function sandItems(seed) {
+  const r = seeded(seed), out = [];
+  for (let x = 8 + r() * 22; x < 392; x += 26 + r() * 22) {
+    const y = 26.5 + r() * 8.5, sc = .32 + .38 * ((y - 26.5) / 8.5), k = r(); // у воды мельче, ближе к нам — крупнее
+    if (k < .5) {
+      const [f, st] = SHELL_COLORS[Math.floor(r() * 4)], w = 6 * sc;
+      out.push(`<path d="M${x.toFixed(1)} ${y.toFixed(1)} q${(w / 2).toFixed(2)} ${(-w * .75).toFixed(2)} ${w.toFixed(2)} 0z" fill="${f}" stroke="${st}" stroke-width="${(.5 * sc + .2).toFixed(2)}"/>`);
+    } else if (k < .68) {
+      const z = 5.5 * sc;
+      out.push(`<path transform="translate(${x.toFixed(1)} ${(y - z).toFixed(1)}) scale(${(z / 16).toFixed(3)})" d="M8 0 L10 5.6 L16 6 L11.4 9.6 L13 15.6 L8 12.2 L3 15.6 L4.6 9.6 L0 6 L6 5.6Z" fill="#FB923C" stroke="#C2410C" stroke-width="1.2"/>`);
+    } else {
+      out.push(`<ellipse cx="${x.toFixed(1)}" cy="${(y - .6).toFixed(1)}" rx="${(2.6 * sc + .3).toFixed(2)}" ry="${(1.5 * sc + .2).toFixed(2)}" fill="${PEBBLES[Math.floor(r() * 4)]}"/>`);
+    }
+  }
+  return out.join("");
+}
+const SUN_RAYS = Array.from({ length: 12 }, (_, i) =>
+  `<g transform="rotate(${i * 30} 30 30)"><rect class="${i % 2 ? "rb" : "ra"}" x="29.2" y="6" width="1.6" height="7" rx=".8" fill="#FFE9A0" opacity=".9"/></g>`).join("");
+function beach(seed) {
+  return `<span class="beach" aria-hidden="true">
+    <svg class="b-sun" viewBox="0 0 60 60"><circle cx="30" cy="30" r="26" fill="#FFF3B0" opacity=".22"/><circle cx="30" cy="30" r="17" fill="#FFF3B0" opacity=".3"/>${SUN_RAYS}<circle cx="30" cy="30" r="9" fill="#FFE27A"/></svg>
+    <svg class="b-gull g1"><use href="#gull"/></svg><svg class="b-gull g2"><use href="#gull"/></svg>
+    <span class="b-sea"><i></i><i></i></span>
+    <svg class="b-sand" viewBox="0 6 400 34" preserveAspectRatio="xMidYMax slice">
+      <path d="M0 16 Q50 8 100 14 T200 13 T300 15 T400 12 V40 H0Z" fill="#F5DEB3"/>
+      <path d="M0 16 Q50 8 100 14 T200 13 T300 15 T400 12" stroke="#fff" stroke-opacity=".7" stroke-width="1.6" fill="none"/>
+      <path d="M0 22 Q60 16 120 21 T240 20 T400 19 V40 H0Z" fill="#E9C68C" opacity=".55"/>
+      ${sandItems(seed)}
+      <g class="b-crab"><svg class="b-crab-b" x="0" y="19" width="20" height="16" viewBox="0 0 20 16"><use href="#crab"/></svg></g>
+    </svg></span>`;
+}
+
 function vacBanner(v) {
   return `<button class="vac-banner" data-act="edit" data-id="${v.id}">
-    <span class="waves" aria-hidden="true"><i></i><span class="boat sail"><svg viewBox="0 0 26 22"><use href="#boat"/></svg></span><i></i></span>
+    ${beach(v.id)}
     <span class="vb-ic"><svg class="isl" viewBox="0 0 24 24"><use href="#island"/></svg></span>
     <span class="vb-txt"><b>${esc(v.title)}</b><small>${vacRange(v)}${v.mute_work ? " · работа на паузе" : ""}</small></span>
   </button>`;
@@ -311,6 +397,19 @@ async function renderHome() {
   </div>`;
 }
 
+/* пересекающиеся отпуска — одно море: общий кораблик, на ярлыке оба названия */
+function mergeVacs(vacs) {
+  const out = [];
+  [...vacs].sort((a, b) => a.start.localeCompare(b.start)).forEach((v) => {
+    const last = out[out.length - 1];
+    if (last && v.start <= iso(addDays(parse(last.end), 1))) {
+      if (v.end > last.end) last.end = v.end;
+      last.title += " · " + v.title;
+    } else out.push({ ...v });
+  });
+  return out;
+}
+
 async function renderCalendar() {
   const { y, m } = S.view;
   const grid = monthGrid(y, m, 6);
@@ -321,7 +420,8 @@ async function renderCalendar() {
   ]);
   const byDay = {};
   items.forEach((i) => (byDay[i.date] ||= []).push(i));
-  const vacOf = (key) => vacs.find((v) => v.start <= key && key <= v.end);
+  const seas = mergeVacs(vacs);
+  const vacOf = (key) => seas.find((v) => v.start <= key && key <= v.end);
   const dayVacs = vacs.filter((v) => v.start <= iso(S.selected) && iso(S.selected) <= v.end);
 
   const head = WD.map((w) => `<div class="wd">${w}</div>`).join("");
@@ -429,12 +529,22 @@ async function renderStats() {
     </div>`;
 }
 
+const LONG_SNOOZE = [[30, "30 мин", "30 минут"], [60, "1 час", "1 час"], [120, "2 часа", "2 часа"]];
+function snoozeSeg(cur) {
+  cur = Number(cur);
+  const short = [5, 10, 15].map((v) => `<button class="${cur === v ? "on" : ""}" data-act="set-snooze" data-v="${v}">${v}</button>`).join("");
+  const long = LONG_SNOOZE.find(([v]) => v === cur) || LONG_SNOOZE[0];
+  return `<div class="seg snz">${short}<button class="snz-btn${cur >= 30 ? " on" : ""}" data-act="snz-open">${long[1]}${icon("down")}</button>
+    <div class="snz-pop" hidden>${LONG_SNOOZE.map(([v, , t]) => `<button class="${cur === v ? "on" : ""}" data-act="set-snooze" data-v="${v}">${t}</button>`).join("")}</div></div>`;
+}
+
 function renderSettings() {
   const st = S.settings;
   const seg = (act, opts, cur) => `<div class="seg">${opts.map(([v, t]) =>
     `<button class="${String(cur) === String(v) ? "on" : ""}" data-act="${act}" data-v="${v}">${t}</button>`).join("")}</div>`;
   const sw = (key, on, disabled) => `<button class="switch${on ? " on" : ""}" data-act="switch" data-key="${key}" ${disabled ? "disabled" : ""}></button>`;
   return `<div class="settings">
+    <div class="col">
     <div class="card"><div class="card-head"><h3>Профиль и вид</h3></div>
       <div class="setting"><span class="ic">${icon("user")}</span>
         <div class="txt"><b>Как тебя зовут</b><small>Для приветствия на главной</small></div>
@@ -446,21 +556,6 @@ function renderSettings() {
         <div class="txt"><b>Тема</b><small>Можно переключать и кнопкой в меню</small></div>
         ${seg("set-theme", [["dark", "Тёмная"], ["light", "Светлая"]], st.theme)}</div>
     </div>
-    <div class="card"><div class="card-head"><h3>Уведомления</h3></div>
-      <div class="setting"><span class="ic">${icon("volume")}</span>
-        <div class="txt"><b>Звук</b><small>Сигнал при появлении напоминания</small></div>${sw("sound", st.sound)}</div>
-      <div class="setting"><span class="ic">${icon("snooze")}</span>
-        <div class="txt"><b>Откладывать на</b><small>Кнопка «Позже» в уведомлении</small></div>
-        ${seg("set-snooze", [[5, "5"], [10, "10"], [15, "15"], [30, "30 мин"]], st.snooze_minutes)}</div>
-      <div class="setting"><span class="ic">${icon("power")}</span>
-        <div class="txt"><b>Запускать вместе с Windows</b>
-        <small>${S.canAutostart ? "Flint тихо стартует в трее, у часов" : "Доступно в собранной exe-версии"}</small></div>
-        ${sw("autostart", st.autostart, !S.canAutostart)}</div>
-      <div class="warn-note${st.autostart ? "" : " off"}">${icon("bell")}<div>
-        <b>${st.autostart ? phrase("autoOn") : "Без автозапуска напоминания могут не прийти"}</b>
-        <span>Напоминания работают, только пока Flint запущен. Крестик не выключает его — Flint ждёт в трее у часов.
-        Полностью выключает только «Выход»${st.autostart ? "." : ": после этого или после перезагрузки компьютера уведомлений не будет, " + phrase("autoOff") + "."}</span></div></div>
-    </div>
     <div class="card"><div class="card-head"><h3>Анимации</h3></div>
       <div class="setting"><span class="ic">${icon("flame")}</span>
         <div class="txt"><b>Эффект</b><small>${REDUCED ? "В Windows выключены анимации — Flint тоже показывает всё статично" : "Как переливается подсветка"}</small></div>
@@ -468,6 +563,27 @@ function renderSettings() {
       <div class="setting"><span class="ic">${icon("clock")}</span>
         <div class="txt"><b>Скорость</b><small>Сколько длится переливание</small></div>
         ${seg("set-speed", [["fast", "Быстро"], ["normal", "Обычно"], ["slow", "Медленно"]], st.anim_speed || "normal")}</div>
+      <div class="setting"><span class="ic"><svg class="isl" viewBox="0 0 24 24"><use href="#island"/></svg></span>
+        <div class="txt"><b>Живые картинки</b><small>Море и кораблик, пляж в отпуске, свечи и конфетти. Выключишь — всё замрёт на месте</small></div>
+        ${sw("anim_live", st.anim_live !== false)}</div>
+    </div>
+    </div>
+    <div class="col">
+    <div class="card"><div class="card-head"><h3>Уведомления</h3></div>
+      <div class="setting"><span class="ic">${icon("volume")}</span>
+        <div class="txt"><b>Звук</b><small>Сигнал при появлении напоминания</small></div>${sw("sound", st.sound)}</div>
+      <div class="setting"><span class="ic">${icon("snooze")}</span>
+        <div class="txt"><b>Откладывать на</b><small>Кнопка «Позже» в уведомлении</small></div>
+        ${snoozeSeg(st.snooze_minutes)}</div>
+      <div class="setting"><span class="ic">${icon("power")}</span>
+        <div class="txt"><b>Запускать вместе с Windows</b>
+        <small>${S.canAutostart ? "Flint тихо стартует в трее, у часов" : "Доступно в собранной exe-версии"}</small></div>
+        ${sw("autostart", st.autostart, !S.canAutostart)}</div>
+      <div class="warn-note${st.autostart ? "" : " off"}">${icon("bell")}<div>
+        <b>${st.autostart ? phrase("autoOn") : "Без автозапуска напоминания могут не прийти"}</b>
+        <span>Напоминания работают, только пока Flint запущен. Крестик не выключает его: Flint продолжает работать в фоне, его значок-огонёк — в правом нижнем углу экрана, рядом с часами (если не видно, нажми стрелочку ^ возле часов).
+        Полностью выключает только кнопка «Выход»${st.autostart ? "." : ": после этого или после перезагрузки компьютера уведомлений не будет, " + phrase("autoOff") + "."}</span></div></div>
+    </div>
     </div>
   </div>`;
 }
@@ -478,6 +594,8 @@ function applyAnim() {
   S.anim = REDUCED ? "off" : (S.settings.anim_effect || "lava");
   S.speed = { fast: 300, normal: 450, slow: 800 }[S.settings.anim_speed] || 450;
   document.body.classList.toggle("anim-off", S.anim === "off");
+  S.live = S.anim !== "off" && S.settings.anim_live !== false;
+  document.body.classList.toggle("live-off", !S.live);
 }
 
 function applyTheme() {
@@ -624,10 +742,16 @@ function applyKind() {
   $("#edDateLabel").textContent = ui.date;
   document.querySelectorAll("#edKinds button").forEach((b) => b.classList.toggle("on", b.dataset.v === ed.kind));
   document.querySelectorAll(".modal [data-kinds]").forEach((f) => (f.hidden = !f.dataset.kinds.split(" ").includes(ed.kind)));
-  const presets = ed.kind === "reminder" ? ["+15 мин", "+1 час", ...TIME_PRESETS] : TIME_PRESETS;
-  $("#edPresets").innerHTML = presets.map((t) => `<button data-act="preset" data-v="${t}">${t}</button>`).join("");
+  $("#edPresets").innerHTML = TIME_PRESETS.map((t) => `<button data-act="preset" data-v="${t}">${t}</button>`).join("");
+  markPreset();
   renderEdChoices();
   updateEdHead();
+  checkVacOverlap();
+}
+
+function markPreset() {
+  const t = $("#edTime").value.trim();
+  document.querySelectorAll("#edPresets button").forEach((b) => b.classList.toggle("on", b.dataset.v === t));
 }
 
 function renderEdChoices() {
@@ -676,6 +800,19 @@ function setEdDate(dateStr, which = "start") {
   }
   if (ed.kind === "birthday") renderEdChoices();
   updateEdHead();
+  checkVacOverlap();
+}
+
+async function checkVacOverlap() {
+  const ed = S.ed, hint = $("#edVacHint");
+  if (!ed || ed.kind !== "vacation") return (hint.hidden = true);
+  const others = (await api("vacations", ed.date, ed.date_end)).filter((v) => v.id !== ed.id);
+  if (S.ed !== ed) return;
+  hint.hidden = !others.length;
+  if (others.length) {
+    const v = others[0], d1 = parse(v.start), d2 = parse(v.end);
+    hint.innerHTML = `${icon("info")}<span>Пересекается с «${esc(v.title)}» (${d1.getDate()}–${d2.getDate()} ${MONTHS_GEN[d2.getMonth()].slice(0, 3)}.) — в календаре они сольются в один отпуск</span>`;
+  }
 }
 
 const dmy = (d, withYear = true) => `${d.getDate()} ${MONTHS_GEN[d.getMonth()]}${withYear ? " " + d.getFullYear() : ""}`;
@@ -854,6 +991,13 @@ document.addEventListener("click", async (e) => {
     case "theme": return FX.theme(el, () => saveSettings({ theme: S.settings.theme === "dark" ? "light" : "dark" }));
     case "set-theme": return el.classList.contains("on") ? null : FX.theme(el, () => saveSettings({ theme: el.dataset.v }));
     case "set-snooze": return saveSettings({ snooze_minutes: Number(el.dataset.v) });
+    case "snz-open": {
+      e.stopPropagation();
+      const pop = el.closest(".snz").querySelector(".snz-pop");
+      pop.hidden = !pop.hidden;
+      if (!pop.hidden) setTimeout(() => document.addEventListener("click", () => (pop.hidden = true), { once: true }));
+      return;
+    }
     case "set-gender": return saveSettings({ gender: el.dataset.v });
     case "set-anim": return saveSettings({ anim_effect: el.dataset.v });
     case "set-speed": return saveSettings({ anim_speed: el.dataset.v });
@@ -889,14 +1033,8 @@ document.addEventListener("click", async (e) => {
       return renderEdChoices();
     case "ed-mute": S.ed.mute_work = !S.ed.mute_work; return renderEdChoices();
     case "preset": {
-      const v = el.dataset.v;
-      if (v.startsWith("+")) {
-        const t = new Date(Date.now() + (v.includes("час") ? 60 : 15) * 60000);
-        setEdDate(iso(t));
-        $("#edTime").value = `${pad(t.getHours())}:${pad(t.getMinutes())}`;
-      } else {
-        $("#edTime").value = v;
-      }
+      $("#edTime").value = el.dataset.v; // меняем только время — дата остаётся той, что выбрана
+      markPreset();
       return updateEdHead();
     }
     case "ed-datepick": {
@@ -948,6 +1086,7 @@ document.addEventListener("change", (e) => {
   if (e.target.id === "setName") saveSettings({ name: e.target.value.trim() });
 });
 $("#edTitle").addEventListener("input", () => ($("#edError").textContent = ""));
+$("#edTime").addEventListener("input", () => markPreset());
 $("#edBYear").addEventListener("input", (e) => {
   e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4);
   $("#edError").textContent = "";

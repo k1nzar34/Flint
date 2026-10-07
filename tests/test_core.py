@@ -315,3 +315,26 @@ def test_settings_choices_validated(store):
     assert (store.settings["gender"], store.settings["anim_effect"], store.settings["anim_speed"]) == ("f", "plain", "slow")
     store.update_settings({"gender": "x", "anim_effect": "boom", "theme": "pink"})
     assert store.settings["gender"] == "f" and store.settings["anim_effect"] == "plain" and store.settings["theme"] == "dark"
+
+
+def test_broken_file_is_kept_aside(tmp_path):
+    path = tmp_path / "data.json"
+    path.write_text('{"reminders": [,]}', encoding="utf-8")
+    s = Store(str(path))
+    assert s.reminders == []
+    broken = list(tmp_path.glob("data.broken-*.json"))
+    assert len(broken) == 1 and broken[0].read_text(encoding="utf-8") == '{"reminders": [,]}'
+    s.save()  # новый файл не трогает отложенную копию
+    assert broken[0].exists() and path.exists()
+
+
+def test_overlapping_vacations_merge(store):
+    now = datetime(2026, 10, 1, 9, 0)
+    store.upsert({"kind": "vacation", "title": "Проба", "date": "2026-12-07", "date_end": "2026-12-13"}, now)
+    store.upsert({"kind": "vacation", "title": "Отпуск", "date": "2026-12-11", "date_end": "2026-12-17"}, now)
+    store.upsert({"kind": "vacation", "title": "Потом", "date": "2026-12-25", "date_end": "2026-12-27"}, now)
+    cl = store.vacation_clusters()
+    assert [(c["start"].day, c["end"].day, c["titles"]) for c in cl] == [(7, 17, ["Проба", "Отпуск"]), (25, 27, ["Потом"])]
+    info = store.month_info(2026, 12)["vac"]
+    assert info["2026-12-07"]["start"] and info["2026-12-17"]["end"] and not info["2026-12-13"]["end"]
+    assert info["2026-12-12"]["id"] == info["2026-12-16"]["id"]  # одно море — один кораблик

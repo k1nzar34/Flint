@@ -97,7 +97,7 @@ async function call(name) {
   document.getElementById("title").textContent = info.title;
   document.getElementById("when").textContent = info.when;
   document.getElementById("note").textContent = info.note || "";
-  document.getElementById("later").textContent = `+${info.snooze} мин`;
+  document.getElementById("later").textContent = info.snooze >= 60 ? `+${info.snooze / 60} ч` : `+${info.snooze} мин`;
   if (info.kind === "birthday") {
     const pop = document.querySelector(".pop");
     pop.classList.add("bday");

@@ -44,11 +44,21 @@ const FX = (() => {
     if (dist < 2) return;
     const D = S.speed * (1.5 + Math.min(dist, 400) / 500);
     box.classList.add("pouring");
+    const mini = box.classList.contains("mini");
+    const srcBday = mini && src.classList.contains("bday"), dstBday = mini && dst.classList.contains("bday");
 
-    // 1) старая плитка выливается
-    const ghost = liquid("fx-ghost");
-    src.appendChild(ghost);
-    level(ghost, 104, -8, D * .55, 0, "cubic-bezier(.5,0,.6,1)").onfinish = () => ghost.remove();
+    // 1) старая плитка выливается; у ДР золото остаётся, а фиолетовое кольцо сворачивается
+    if (srcBday) {
+      const ring = document.createElement("i");
+      ring.className = "ring-out";
+      src.appendChild(ring);
+      ring.animate([{ "--ra": "360deg" }, { "--ra": "0deg" }], { duration: D * .45, easing: "cubic-bezier(.6,0,.8,.4)", fill: "forwards" })
+        .onfinish = () => ring.remove();
+    } else {
+      const ghost = liquid("fx-ghost");
+      src.appendChild(ghost);
+      level(ghost, 104, -8, D * .55, 0, "cubic-bezier(.5,0,.6,1)").onfinish = () => ghost.remove();
+    }
 
     // 2) струйка дугой
     const ux = (b.x - a.x) / dist, uy = (b.y - a.y) / dist;
@@ -74,6 +84,14 @@ const FX = (() => {
       { strokeDashoffset: -L, strokeWidth: 2 },
     ], { duration: D * .7, delay: D * .08, easing: "ease-in-out", fill: "both" }).onfinish = () => svg.remove();
 
+    // 3) в день рождения лава не льётся — вокруг золота прорисовывается кольцо
+    if (dstBday) {
+      dst.style.setProperty("--rd", Math.round(D * .42) + "ms");
+      dst.classList.add("ring-in");
+      setTimeout(() => { box.classList.remove("pouring"); dst.classList.remove("ring-in"); }, D * .42 + 1100);
+      if (isLava()) sparks(box, b.x, b.bottom - b.h * .25, D * .42, 6);
+      return;
+    }
     // 3) новая плитка наполняется снизу вверх, потом лава остывает
     const fill = liquid("fx-fill");
     dst.appendChild(fill);
@@ -309,7 +327,7 @@ const FX = (() => {
         else rows.push({ top: c.top, left: c.left, right: c.right });
       });
       rows.sort((a, b) => a.top - b.top);
-      const BW = 24, SPEED = 30, FADE = 0.45; // ширина, px/с, с
+      const BW = 27, SPEED = 30, FADE = 0.45; // ширина, px/с, с
       const segs = rows.map((r) => ({ top: r.top, x1: r.left + 6, x2: r.right - BW - 6 })).filter((g) => g.x2 > g.x1);
       if (!segs.length) return;
       const durs = segs.map((g) => (g.x2 - g.x1) / SPEED + FADE * 2);
@@ -335,6 +353,7 @@ const FX = (() => {
         sea.insertBefore(boat, sea.lastElementChild); // между дальней и ближней волной
         const anim = boat.animate(kf, { duration: total * 1000, iterations: Infinity, easing: "linear" });
         anim.currentTime = phase;
+        if (S.live === false) anim.pause(); // «живые картинки» выключены — кораблик замирает
       });
     });
   }

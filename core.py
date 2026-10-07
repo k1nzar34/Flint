@@ -45,6 +45,7 @@ DEFAULT_SETTINGS = {
     "autostart": True,              # запускать вместе с Windows (в трее)
     "anim_effect": "lava",          # lava / plain / off
     "anim_speed": "normal",         # fast / normal / slow
+    "anim_live": True,              # «живые картинки»: море, кораблик, пляж, свечи, конфетти
     "tray_hint_shown": False,       # подсказку «Flint работает в фоне» показали
 }
 
@@ -172,7 +173,17 @@ class Store:
         try:
             with open(self.path, encoding="utf-8") as f:
                 data = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
+        except FileNotFoundError:
+            return
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            # файл повреждён (например, правили руками) — не затираем его, а откладываем копию рядом
+            stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            try:
+                os.replace(self.path, f"{self.path[:-5] if self.path.endswith('.json') else self.path}.broken-{stamp}.json")
+            except OSError:
+                pass
+            return
+        if not isinstance(data, dict):
             return
         self.settings.update(data.get("settings", {}))
         self.reminders = [r for r in data.get("reminders", []) if "start" in r]
@@ -299,7 +310,7 @@ class Store:
                                     + timedelta(minutes=minutes))
             self.save()
 
-    CHOICES = {"gender": ("m", "f", "n"), "theme": ("dark", "light"),
+    CHOICES = {"gender": ("m", "f", "n"), "theme": ("dark", "light"), "snooze_minutes": (5, 10, 15, 30, 60, 120),
                "anim_effect": ("lava", "plain", "off"), "anim_speed": ("fast", "normal", "slow")}
 
     def update_settings(self, values):
@@ -403,6 +414,20 @@ class Store:
                             "note": v.get("note", "")})
         return sorted(out, key=lambda v: v["start"])
 
+    def vacation_clusters(self):
+        """Пересекающиеся (или стык в стык) отпуска сливаются в одно «море»: один кораблик, общие края."""
+        spans = sorted(((parse(v["start"]).date(), date.fromisoformat(v["end"]), v) for v in self.of_kind("vacation")),
+                       key=lambda x: x[0])
+        out = []
+        for s, e, v in spans:
+            if out and s <= out[-1]["end"] + timedelta(days=1):
+                c = out[-1]
+                c["end"] = max(c["end"], e)
+                c["titles"].append(v["title"])
+            else:
+                out.append({"id": v["id"], "start": s, "end": e, "titles": [v["title"]]})
+        return out
+
     @staticmethod
     def _grid_bounds(year, month):
         return date(year, month, 1) - timedelta(days=7), date(year, month, 28) + timedelta(days=14)
@@ -429,14 +454,15 @@ class Store:
         """Всё для мини-календаря одним запросом: точки, огоньки, дни рождения, отпуск."""
         first, last = self._grid_bounds(year, month)
         bdays, vac = {}, {}
+        clusters = self.vacation_clusters()
         for d in daterange(first, last):
             key = d.strftime(DFMT)
             names = [r["title"] for r in self.of_kind("birthday") if occurs_on(r, d)]
             if names:
                 bdays[key] = names
-            v = self.vacation_on(d)
-            if v:
-                vac[key] = {"id": v["id"], "start": v["start"][:10] == key, "end": v["end"] == key}
+            c = next((c for c in clusters if c["start"] <= d <= c["end"]), None)
+            if c:
+                vac[key] = {"id": c["id"], "start": c["start"] == d, "end": c["end"] == d}
         return {"marks": self.month_marks(year, month), "hot": self.month_hot(year, month),
                 "bdays": bdays, "vac": vac}
 

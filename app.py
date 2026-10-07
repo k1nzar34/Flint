@@ -179,7 +179,7 @@ def hide_to_tray():
         with lock:
             store.update_settings({"tray_hint_shown": True})
         try:
-            tray.notify("Flint работает в фоне — ищи огонёк у часов 🔥", "Flint")
+            tray.notify("Flint продолжает работать в фоне. Его значок-огонёк — в правом нижнем углу экрана, рядом с часами 🔥", "Flint")
         except Exception:
             pass
 
