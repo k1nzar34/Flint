@@ -342,8 +342,7 @@ async function renderCalendar() {
     const more = list.length > max ? `<span class="more-n">ещё ${list.length - max}</span>` : "";
     const sea = vac ? `<span class="sea" aria-hidden="true"><i></i><i></i></span>${vs ? `<span class="vac-label" title="${esc(vac.title)}"><svg class="isl" viewBox="0 0 24 24"><use href="#island"/></svg><span>${esc(vac.title)}</span></span>` : ""}` : "";
     const confetti = isBday ? `<span class="confetti" aria-hidden="true">${"<i></i>".repeat(6)}</span>` : "";
-    const hat = isBday && !isHot ? '<svg class="hat" viewBox="0 0 28 33" aria-hidden="true"><use href="#party-hat"/></svg>' : "";
-    return `<button class="${cls}" data-act="pick" data-date="${key}"${vac ? ` data-vac="${vac.id}"` : ""}>${sea}${confetti}<span class="n">${isHot ? fireBg() : ""}<span class="num">${d.getDate()}</span>${hat}</span>${chips}${more}</button>`;
+    return `<button class="${cls}" data-act="pick" data-date="${key}"${vac ? ` data-vac="${vac.id}"` : ""}>${sea}${confetti}<span class="n">${isHot ? fireBg() : ""}<span class="num">${d.getDate()}</span></span>${chips}${more}</button>`;
   }).join("");
 
   const dayList = dayItems.length || dayVacs.length

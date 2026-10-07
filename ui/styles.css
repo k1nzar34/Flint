@@ -843,9 +843,6 @@ svg.hat { position: absolute; width: 13px; height: 16px; pointer-events: none; z
 .warn-note.off { background: color-mix(in srgb, #F59E0B 12%, transparent); border-color: color-mix(in srgb, #F59E0B 40%, transparent); }
 .warn-note.off svg.i { color: #F59E0B; }
 
-/* ---------- Шапочка надета на число (большой календарь) ---------- */
-.cell.bday .n { margin-top: 10px; }
-.cell .n svg.hat { width: 20px; height: 24px; top: -17px; left: -7px; right: auto; transform: rotate(-18deg); }
 
 /* ---------- Мини-календарь на главной: мягкие подсветки ---------- */
 .cal.mini .day { width: 42px; justify-self: center; }
@@ -881,7 +878,7 @@ svg.hat { position: absolute; width: 13px; height: 16px; pointer-events: none; z
 [data-theme="light"] .fx-spark-s { box-shadow: 0 0 6px 1px var(--c), 0 0 0 1px rgba(0, 0, 0, .12); }
 
 /* кораблик в баннере отпуска: плывёт по дальней волне через весь баннер */
-.vac-banner { padding-bottom: 30px; }
-.vac-banner .boat.sail { top: -8px; opacity: 1; width: 19px; height: 16px; animation: sail 26s linear infinite; animation-delay: calc(var(--clock) - 7s); }
+.vac-banner .boat.sail { top: -3px; opacity: 1; width: 24px; height: 20px; animation: sail 26s linear infinite; animation-delay: calc(var(--clock) - 7s); }
 @keyframes sail { 0% { left: -30px; opacity: 0; } 4% { opacity: 1; } 96% { opacity: 1; } 100% { left: calc(100% + 8px); opacity: 0; } }
 .anim-off .vac-banner .boat.sail { animation: none; left: 70%; }
+.vac-banner > :not(.waves) { position: relative; z-index: 1; } /* текст поверх проплывающего кораблика */
