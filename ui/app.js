@@ -136,10 +136,13 @@ const CAKE_BODY = (() => {
     <ellipse class="ic" cx="110" cy="42" rx="100" ry="22"/>${drips}<ellipse class="cake-glow" cx="110" cy="38" rx="46" ry="10"/>${spr}`;
 })();
 function flame(x, top, i) {
-  return `<path d="M${x} ${top} v-3.2" stroke="#3B2A1A" stroke-width="1.3" stroke-linecap="round"/>
-    <g class="fl" style="transform-origin:${x}px ${top - 5}px;animation-delay:calc(var(--clock) - ${(i * .37).toFixed(2)}s)"><ellipse cx="${x}" cy="${top - 8}" rx="6" ry="8" fill="#FFB020" opacity=".18"/>
+  // каждая свеча отдельно: навёл на огонёк — гаснет она одна (невидимая зона .hit ловит мышку)
+  return `<g class="wick"><path d="M${x} ${top} v-3.2" stroke="#3B2A1A" stroke-width="1.3" stroke-linecap="round"/>
+    <g class="fl" style="transform-origin:${x}px ${top - 3}px;animation-delay:calc(var(--clock) - ${(i * .37).toFixed(2)}s)"><ellipse cx="${x}" cy="${top - 8}" rx="6" ry="8" fill="#FFB020" opacity=".18"/>
     <path d="M${x} ${top - 15} q4.2 5.4 0 10.2 q-4.2-4.8 0-10.2z" fill="#FFB020"/><path d="M${x} ${top - 11} q2 2.6 0 5 q-2-2.4 0-5z" fill="#FFF3B0"/></g>
-    <g class="smoke" style="transform-origin:${x}px ${top - 4}px"><path d="M${x} ${top - 4} q-3 -5 0 -9 q3 -4 0 -9" stroke="#CBD5E1" stroke-width="1.6" fill="none" stroke-linecap="round"/></g>`;
+    <circle class="spark" cx="${x}" cy="${top - 4}" r="2.4" fill="#FFF3B0"/>
+    <g class="smoke" style="transform-origin:${x}px ${top - 4}px"><path d="M${x} ${top - 4} q-3 -5 0 -9 q3 -4 0 -9" stroke="#CBD5E1" stroke-width="1.6" fill="none" stroke-linecap="round"/></g>
+    <rect class="hit" x="${x - 9}" y="${top - 18}" width="18" height="22" fill="transparent"/></g>`;
 }
 function cakeSvg(age) {
   let candles = "";
@@ -225,8 +228,8 @@ function beach(seed) {
       <path d="M0 16 Q50 8 100 14 T200 13 T300 15 T400 12" stroke="#fff" stroke-opacity=".7" stroke-width="1.6" fill="none"/>
       <path d="M0 22 Q60 16 120 21 T240 20 T400 19 V40 H0Z" fill="#E9C68C" opacity=".55"/>
       ${sandItems(seed)}
-      <g class="b-crab"><svg class="b-crab-b" x="0" y="19" width="20" height="16" viewBox="0 0 20 16"><use href="#crab"/></svg></g>
-    </svg></span>`;
+    </svg>
+    <span class="b-crab"><svg viewBox="0 0 30 20"><use href="#crab"/></svg></span></span>`;
 }
 
 function vacBanner(v) {
@@ -405,10 +408,50 @@ function mergeVacs(vacs) {
     if (last && v.start <= iso(addDays(parse(last.end), 1))) {
       if (v.end > last.end) last.end = v.end;
       last.title += " · " + v.title;
+      last.seed = (last.seed || "") + (v.seed || "");
     } else out.push({ ...v });
   });
   return out;
 }
+
+/* Море с волнами, корабликом и островами в плитках календаря. Пока выключено (Дима решил оставить
+   анимацию только в баннере отпуска) — код целиком на месте, вернуть: поставить true. */
+const SEA_IN_CALENDAR = false;
+
+/* ---------- Острова на горизонте отпуска: до 5 на всё море, по одному в плитке ---------- */
+const ISLANDS = [ // viewBox 0 0 40 20; [рисунок, сдвиг вниз в px — насколько остров «сидит» в воде]
+  ['<path d="M3 20 Q12 11 20 12 Q28 11 37 20Z" fill="#E9CF96"/><path d="M20 13 Q21 7 19 3" stroke="#8B5A2B" stroke-width="1.3" fill="none"/><path d="M19 4 Q14 2 11 5 M19 4 Q24 1 27 4 M19 4 Q16 6 14 9 M19 4 Q23 6 25 8" stroke="#22A35A" stroke-width="1.7" fill="none" stroke-linecap="round"/>', 3],
+  ['<path d="M1 20 Q20 12 39 20Z" fill="#E9CF96"/><path d="M28 16 Q28 11 27 8" stroke="#8B5A2B" stroke-width="1.1" fill="none"/><path d="M27 8.5 Q24 7 22 9 M27 8.5 Q30 6.5 32 8.5 M27 8.5 Q26 10 25 11.5" stroke="#22A35A" stroke-width="1.4" fill="none" stroke-linecap="round"/>', 4],
+  ['<path d="M6 20 Q20 15 34 20Z" fill="#E9CF96"/><path d="M10 18 L14 9 L18 11 L21 5 L26 10 L30 18Z" fill="#8A8F9C"/><path d="M21 5 L23 10" stroke="#6B7280" stroke-width=".8"/>', 3],
+  ['<path d="M0 20 Q20 12 40 20Z" fill="#E9CF96"/><path d="M6 17 Q12 7 20 9 Q27 7 34 17Z" fill="#2F8F6B"/><path d="M12 11 Q17 6 24 9" stroke="#24785A" stroke-width="1" fill="none"/><path d="M27 11 Q27 6 26 4" stroke="#8B5A2B" stroke-width="1.1" fill="none"/><path d="M26 4.5 Q23 3 21 5 M26 4.5 Q29 2.5 31 4.5" stroke="#22A35A" stroke-width="1.4" fill="none" stroke-linecap="round"/>', 3],
+  ['<path d="M4 20 Q20 14 36 20Z" fill="#E9CF96"/><path d="M14 17 V12 M24 17 V12" stroke="#8B5A2B" stroke-width="1"/><rect x="12" y="8" width="14" height="5" fill="#C08A4A"/><path d="M10 9 L19 3 L28 9Z" fill="#A16207"/><path d="M31 16 Q31.7 11.8 30.3 9 M30.3 9.7 Q26.1 8.3 24.7 10.4 M30.3 9.7 Q33.1 7.6 35.9 9.7 M30.3 9.7 Q28.2 11.1 27.5 13.2" stroke="#22A35A" stroke-width="1.1" fill="none" stroke-linecap="round"/>', 3],
+  ['<path d="M6 20 L10 14 L16 15 L20 12 L28 15 L33 20Z" fill="#8A8F9C"/><path d="M18 13 L19 3 L22 3 L23 13Z" fill="#fff"/><path d="M18.5 6 H22.5 M18.2 9.5 H22.8" stroke="#EF4444" stroke-width="1.6"/><rect x="18.4" y="1" width="4.2" height="2.4" fill="#FDE047"/>', 3],
+  ['<path d="M2 20 Q20 11 38 20Z" fill="#E9CF96"/><path d="M15 15 Q16 9 14 5" stroke="#8B5A2B" stroke-width="1.2" fill="none"/><path d="M14 6 Q9 4 6 7 M14 6 Q19 3 22 6 M14 6 Q11 8 9 11" stroke="#22A35A" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M25 15 Q25.8 10.2 24.2 7" stroke="#8B5A2B" stroke-width="1" fill="none"/><path d="M24.2 7.8 Q20.2 6.2 17.8 8.6 M24.2 7.8 Q28.2 5.4 30.6 7.8" stroke="#22A35A" stroke-width="1.2" fill="none" stroke-linecap="round"/>', 3],
+  ['<path d="M6 20 L8 10 Q14 3 22 6 Q30 4 33 12 L34 20 H27 Q27 13 20 13 Q14 13 13 20Z" fill="#8A8F9C"/><path d="M12 9 Q16 6 22 7" stroke="#6B7280" stroke-width=".8" fill="none"/><path d="M28 6 Q30 4 31 6" stroke="#22A35A" stroke-width="1.6" fill="none"/>', 3],
+  ['<path d="M4 20 L16 6 H24 L36 20Z" fill="#6B5B53"/><path d="M16 6 H24 L22 9 Q20 7 18 9Z" fill="#F97316"/><path d="M4 20 Q20 16 36 20Z" fill="#E9CF96"/><circle cx="21" cy="3" r="2" fill="#CBD5E1" opacity=".8"/><circle cx="24" cy="1" r="1.4" fill="#CBD5E1" opacity=".6"/>', 3],
+];
+function islandFor(sea, key) {
+  // не больше 5 островов на всё море (даже на годовой отпуск), не больше одного в плитке, виды не повторяются
+  const start = parse(sea.start), days = Math.round((parse(sea.end) - start) / 864e5) + 1;
+  const n = Math.max(1, Math.min(5, Math.round(days / 4.2)));
+  const day = Math.round((parse(key) - start) / 864e5);
+  const k = [...Array(n).keys()].find((j) => Math.min(days - 1, Math.floor((j + .5) * days / n)) === day);
+  if (k === undefined) return "";
+  const seed = sea.id + ":" + (sea.seed || ""), kinds = [...ISLANDS.keys()], rs = seeded(seed);
+  for (let i = kinds.length - 1; i > 0; i--) { const j = Math.floor(rs() * (i + 1)); [kinds[i], kinds[j]] = [kinds[j], kinds[i]]; }
+  const r = seeded(seed + ":" + k);
+  const w = [40, 46, 52][Math.floor(r() * 3)], pos = 24 + r() * 52, [svg, sink] = ISLANDS[kinds[k % kinds.length]];
+  return `<span class="isl-wrap"><svg class="isl-x" viewBox="0 0 40 20" style="width:${w}px;height:${w / 2}px;left:calc(${pos.toFixed(1)}% - ${w / 2}px);bottom:${sink}px">${svg}</svg></span>`;
+}
+
+/* ---------- Плитка дня рождения: подарки снизу ---------- */
+const BDAY_DECOR = (() => {
+  return `<svg class="bd-gifts" viewBox="0 0 80 22" aria-hidden="true"><rect x="6" y="8" width="16" height="14" rx="1.5" fill="#FF5C8A"/><rect x="5" y="6" width="18" height="4" rx="1" fill="#FF7FA3"/><rect x="13" y="6" width="2" height="16" fill="#FFD24D"/><path d="M14 6 Q9 1 8 4 Q9 6 14 6 Q19 1 20 4 Q19 6 14 6" fill="#FFD24D"/>
+    <rect x="28" y="12" width="12" height="10" rx="1.2" fill="#38BDF8"/><rect x="27" y="10.5" width="14" height="3" rx="1" fill="#7DD3FC"/><rect x="33" y="10.5" width="2" height="11.5" fill="#fff"/><path d="M34 10.5 Q30.5 6.5 29.6 8.8 Q30.4 10.5 34 10.5 Q37.5 6.5 38.4 8.8 Q37.6 10.5 34 10.5" fill="#fff"/>
+    <rect x="56" y="10" width="14" height="12" rx="1.3" fill="#A855F7"/><rect x="55" y="8" width="16" height="3.5" rx="1" fill="#C084FC"/><rect x="62" y="8" width="2" height="14" fill="#86EFAC"/><path d="M63 8 Q59 4 58 6.5 Q59 8 63 8 Q67 4 68 6.5 Q67 8 63 8" fill="#86EFAC"/></svg>
+  <svg class="bd-gifts bd-more" viewBox="0 0 44 22" aria-hidden="true"><rect x="2" y="11" width="13" height="11" rx="1.2" fill="#FFD24D"/><rect x="1" y="9" width="15" height="3.2" rx="1" fill="#FDE68A"/><rect x="7.5" y="9" width="2" height="13" fill="#FF5C8A"/><path d="M8.5 9 Q5 5 4 7.5 Q5 9 8.5 9 Q12 5 13 7.5 Q12 9 8.5 9" fill="#FF5C8A"/>
+    <rect x="22" y="6" width="18" height="16" rx="1.6" fill="#22C55E"/><rect x="21" y="4" width="20" height="4" rx="1.2" fill="#4ADE80"/><rect x="30" y="4" width="2" height="18" fill="#fff"/><path d="M31 4 Q26 -1 25 2 Q26 4 31 4 Q36 -1 37 2 Q36 4 31 4" fill="#fff"/></svg>`;
+})();
 
 async function renderCalendar() {
   const { y, m } = S.view;
@@ -435,13 +478,13 @@ async function renderCalendar() {
       isHot ? "hot" : "", isBday ? "bday" : "", vac ? "vac" : "", vs ? "vs" : "", ve ? "ve" : ""].join(" ");
     const rank = (i) => (i.kind === "birthday" ? 2 : 0) + (i.important && !i.done ? 1 : 0);
     const sorted = [...list].sort((a, b) => rank(b) - rank(a));
-    const max = vac ? 1 : 2;
+    const max = vac || isBday ? 1 : 2; // в ДР внизу подарки — оставляем им место
     const chips = sorted.slice(0, max).map((i) => i.kind === "birthday"
       ? `<span class="chip gold" title="День рождения: ${esc(i.title)}">${esc(i.title)}${i.age ? ` · ${i.age}` : ""}</span>`
       : `<span class="chip${i.done ? " done" : ""}${i.important ? " hot" : ""}" style="--c:${i.important ? IMPORTANT : CAT_COLORS[i.category] || "var(--accent)"}" title="${i.time} ${esc(i.title)}">${i.important ? icon("flame") : ""}${esc(i.title)}</span>`).join("");
     const more = list.length > max ? `<span class="more-n">ещё ${list.length - max}</span>` : "";
-    const sea = vac ? `<span class="sea" aria-hidden="true"><i></i><i></i></span>${vs ? `<span class="vac-label" title="${esc(vac.title)}"><svg class="isl" viewBox="0 0 24 24"><use href="#island"/></svg><span>${esc(vac.title)}</span></span>` : ""}` : "";
-    const confetti = isBday ? `<span class="confetti" aria-hidden="true">${"<i></i>".repeat(6)}</span>` : "";
+    const sea = vac ? `${SEA_IN_CALENDAR ? `<span class="sea" aria-hidden="true">${islandFor(vac, key)}<i></i><i></i></span>` : ""}${vs ? `<span class="vac-label" title="${esc(vac.title)}"><svg class="isl" viewBox="0 0 24 24"><use href="#island"/></svg><span>${esc(vac.title)}</span></span>` : ""}` : "";
+    const confetti = isBday ? `<span class="confetti" aria-hidden="true">${"<i></i>".repeat(6)}</span>${BDAY_DECOR}` : "";
     return `<button class="${cls}" data-act="pick" data-date="${key}"${vac ? ` data-vac="${vac.id}"` : ""}>${sea}${confetti}<span class="n">${isHot ? fireBg() : ""}<span class="num">${d.getDate()}</span></span>${chips}${more}</button>`;
   }).join("");
 
@@ -563,8 +606,8 @@ function renderSettings() {
       <div class="setting"><span class="ic">${icon("clock")}</span>
         <div class="txt"><b>Скорость</b><small>Сколько длится переливание</small></div>
         ${seg("set-speed", [["fast", "Быстро"], ["normal", "Обычно"], ["slow", "Медленно"]], st.anim_speed || "normal")}</div>
-      <div class="setting"><span class="ic"><svg class="isl" viewBox="0 0 24 24"><use href="#island"/></svg></span>
-        <div class="txt"><b>Живые картинки</b><small>Море и кораблик, пляж в отпуске, свечи и конфетти. Выключишь — всё замрёт на месте</small></div>
+      <div class="setting"><span class="ic">${icon("live")}</span>
+        <div class="txt"><b>Живые картинки</b><small>Пляж, свечи и конфетти замрут на месте</small></div>
         ${sw("anim_live", st.anim_live !== false)}</div>
     </div>
     </div>
@@ -659,7 +702,7 @@ function afterRender(page) {
     S.justDone = null;
   }
   FX.playSeg();
-  FX.boats(page.querySelector(".bigcal"));
+  if (SEA_IN_CALENDAR) FX.boats(page.querySelector(".bigcal"));
 }
 
 function go(page) {
@@ -1087,6 +1130,28 @@ document.addEventListener("change", (e) => {
 });
 $("#edTitle").addEventListener("input", () => ($("#edError").textContent = ""));
 $("#edTime").addEventListener("input", () => markPreset());
+
+/* свечи на торте: гаснет та, на которую навёл; загорается сама, когда уведёшь мышку */
+const RELIGHT_AFTER = 2500;
+document.addEventListener("mouseover", (e) => {
+  const hit = e.target.closest?.(".cake .hit");
+  if (!hit) return;
+  const w = hit.closest(".wick");
+  clearTimeout(w._t);
+  w.classList.remove("relight");
+  w.classList.add("out");
+});
+document.addEventListener("mouseout", (e) => {
+  const hit = e.target.closest?.(".cake .hit");
+  if (!hit) return;
+  const w = hit.closest(".wick");
+  clearTimeout(w._t);
+  w._t = setTimeout(() => {
+    w.classList.remove("out");
+    w.classList.add("relight");
+    w._t = setTimeout(() => w.classList.remove("relight"), 900);
+  }, RELIGHT_AFTER);
+});
 $("#edBYear").addEventListener("input", (e) => {
   e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4);
   $("#edError").textContent = "";

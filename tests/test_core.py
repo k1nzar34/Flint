@@ -338,3 +338,12 @@ def test_overlapping_vacations_merge(store):
     info = store.month_info(2026, 12)["vac"]
     assert info["2026-12-07"]["start"] and info["2026-12-17"]["end"] and not info["2026-12-13"]["end"]
     assert info["2026-12-12"]["id"] == info["2026-12-16"]["id"]  # одно море — один кораблик
+
+
+def test_vacation_seed_changes_on_each_save(store):
+    now = datetime(2026, 10, 1, 9, 0)
+    r = store.upsert({"kind": "vacation", "title": "Море", "date": "2026-12-01", "date_end": "2026-12-20"}, now)
+    s1 = r["seed"]
+    r = store.upsert({"id": r["id"], "kind": "vacation", "title": "Море", "date": "2026-12-01", "date_end": "2026-12-20"}, now)
+    assert r["seed"] and r["seed"] != s1  # пересохранил — острова перемешаются
+    assert store.vacations_between(date(2026, 12, 1), date(2026, 12, 31))[0]["seed"] == r["seed"]

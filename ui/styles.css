@@ -896,7 +896,6 @@ svg.hat { position: absolute; width: 13px; height: 16px; pointer-events: none; z
 .snz-pop button { text-align: left; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text); }
 .snz-pop button:hover { background: var(--hover); }
 .snz-pop button.on { background: var(--accent-soft); color: var(--accent); }
-.setting .ic svg.isl { width: 22px; height: 22px; }
 .modal[data-kind="birthday"] #edPresets button.on { background: var(--gold-grad); color: var(--gold-ink); box-shadow: 0 6px 16px rgba(245, 196, 81, .35); }
 
 /* ---------- Светлая тема: контрастнее и отпуск заметнее ---------- */
@@ -964,15 +963,19 @@ svg.hat { position: absolute; width: 13px; height: 16px; pointer-events: none; z
 .b-gull .wing { transform-origin: 12px 7px; animation: flap .5s ease-in-out infinite; }
 @keyframes flap { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(.35); } }
 .b-sea { position: absolute; left: 0; right: 0; bottom: 17px; height: 19px; background: linear-gradient(180deg, #0E7FC7, #0B5FA5); overflow: hidden; }
-.b-sea i { position: absolute; left: 0; right: 0; height: 6px; background-repeat: repeat-x; background-size: 40px 6px; animation: waveMove 6s linear infinite;
+.b-sea i { position: absolute; left: 0; right: 0; height: 6px; background-repeat: repeat-x; background-size: 40px 6px; animation: seaMove 4s linear infinite;
   animation-delay: var(--clock);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 6'%3E%3Cpath d='M0 4 Q10 0 20 4 T40 4' stroke='%23ffffff' stroke-opacity='.8' stroke-width='1.4' fill='none'/%3E%3C/svg%3E"); }
 .b-sea i:first-child { top: 2px; opacity: .7; }
-.b-sea i:last-child { top: 9px; animation-direction: reverse; animation-duration: 4.4s; }
+.b-sea i:last-child { top: 9px; animation-direction: reverse; animation-duration: 3s; }
+/* шаг сдвига = ширине узора (40px), иначе в конце круга волна «прыгает» */
+@keyframes seaMove { from { background-position-x: 0; } to { background-position-x: 40px; } }
 .b-sand { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 27px; }
-.b-crab { animation: crab 14s ease-in-out infinite; animation-delay: var(--clock); }
-@keyframes crab { 0%, 100% { transform: translateX(250px); } 50% { transform: translateX(290px); } }
-.b-crab-b { animation: scuttle .35s steps(2) infinite; }
+/* краб — отдельно от песка: всегда одного размера, ходит боком на переднем плане */
+.b-crab { position: absolute; bottom: 3px; left: 62%; width: 20px; height: 13px; z-index: 2;
+  animation: crab 14s ease-in-out infinite; animation-delay: var(--clock); }
+@keyframes crab { 0%, 100% { left: 62%; } 50% { left: 70%; } }
+.b-crab svg { width: 100%; height: 100%; display: block; animation: scuttle .35s steps(2) infinite; }
 @keyframes scuttle { 50% { transform: translateY(-1px); } }
 
 /* ---------- Кораблик в плитках: крупнее и сидит в волнах ---------- */
@@ -987,7 +990,7 @@ svg.hat { position: absolute; width: 13px; height: 16px; pointer-events: none; z
 .item.bday > .confetti, .item.bday > .cake { position: absolute; }
 .item.bday > .confetti { z-index: 0; }
 .item.bday .confetti i { width: 4px; height: 7px; }
-.item.bday > .cake { right: 66px; bottom: -12px; width: 210px; height: 100px; z-index: 0; pointer-events: none;
+.item.bday > .cake { right: 66px; bottom: -12px; width: 210px; height: 100px; z-index: 2; pointer-events: none;
   filter: drop-shadow(0 -2px 10px rgba(255, 127, 163, .22)); }
 .compact .item.bday > .cake { right: 40px; width: 116px; height: 56px; bottom: -7px; }
 .cake .ic { fill: var(--icing); }
@@ -1001,15 +1004,48 @@ svg.hat { position: absolute; width: 13px; height: 16px; pointer-events: none; z
 .cake .sp.near { animation: glint 1.1s ease-in-out infinite; }
 @keyframes glint { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.8) drop-shadow(0 0 2px #FFD24D); } }
 .cake .smoke { opacity: 0; }
-/* навёл на карточку — свечи задуваются, идёт дымок, через секунду огоньки загораются снова */
-.item.bday:hover .cake .fl { animation: blowout 2s ease-out both; animation-delay: 0s !important; }
-.item.bday:hover .cake .smoke { animation: smoke 1.7s ease-out .12s both; }
-@keyframes blowout { 0% { transform: scale(1); opacity: 1; } 10% { transform: scale(.3, 0) translateY(-4px); opacity: 0; }
-  62% { transform: scale(.2, 0); opacity: 0; } 78% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
-@keyframes smoke { 0% { opacity: 0; transform: translateY(0) scaleY(.4); } 18% { opacity: .85; } 100% { opacity: 0; transform: translateY(-14px) scaleY(1.1); } }
+/* свеча гаснет, пока на огоньке мышка; потом — искра и огонёк разгорается заново */
+.cake .hit { pointer-events: all; cursor: default; }
+.cake .spark { opacity: 0; }
+.cake .wick.out .fl { opacity: 0; transform: scale(.3, 0) translateY(-4px); transition: opacity .18s, transform .22s ease-out; animation: none; }
+.cake .wick.out .smoke { animation: cakeSmoke 1.7s ease-out .1s both; }
+.cake .wick.relight .fl { animation: ignite .7s ease-out both; }
+.cake .wick.relight .spark { animation: sparkPop .35s ease-out both; }
+@keyframes ignite { 0% { transform: scale(.05); opacity: 0; } 18% { transform: scale(.18, .25); opacity: 1; }
+  50% { transform: scale(.65, 1.25); } 78% { transform: scale(1.08, .95); } 100% { transform: scale(1); opacity: 1; } }
+@keyframes sparkPop { 0% { opacity: 0; transform: scale(.2); } 40% { opacity: 1; transform: scale(1.3); } 100% { opacity: 0; transform: scale(.4); } }
+.cake .spark { transform-box: fill-box; transform-origin: center; }
+@keyframes cakeSmoke { 0% { opacity: 0; transform: translateY(0) scaleY(.4); } 18% { opacity: .85; } 100% { opacity: 0; transform: translateY(-14px) scaleY(1.1); } }
+.live-off .cake .wick.relight .fl, .live-off .cake .wick.relight .spark { animation: none !important; }
 .bday-ic { width: 38px; height: 38px; border-radius: 12px; }
 .bday-ic svg.i { width: 22px; height: 22px; }
-.live-off .item.bday:hover .cake .fl, .live-off .item.bday:hover .cake .smoke { animation: none !important; }
-.live-off .item.bday:hover .cake .smoke { opacity: 0; }
 .setting:has(.snz) { position: relative; z-index: 20; }
 .seg.snz { z-index: 20; }
+
+/* ---------- Острова: вода «отрезает» остров ровно по линии бегущей дальней волны ---------- */
+.isl-wrap { position: absolute; left: 0; right: 0; bottom: 0; height: 44px; pointer-events: none;
+  -webkit-mask-image: linear-gradient(#000, #000), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 0 H60 V13 Q45 8 30 13 Q15 18 0 13 Z'/%3E%3C/svg%3E");
+  mask-image: linear-gradient(#000, #000), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 0 H60 V13 Q45 8 30 13 Q15 18 0 13 Z'/%3E%3C/svg%3E");
+  -webkit-mask-size: 100% 22px, 60px 22px; mask-size: 100% 22px, 60px 22px;
+  -webkit-mask-repeat: no-repeat, repeat-x; mask-repeat: no-repeat, repeat-x;
+  -webkit-mask-position: 0 0, 0 100%; mask-position: 0 0, 0 100%;
+  animation: islMask 4.2s linear infinite reverse; animation-delay: var(--clock); }
+@keyframes islMask {
+  from { -webkit-mask-position: 0 0, 0 100%; mask-position: 0 0, 0 100%; }
+  to { -webkit-mask-position: 0 0, 60px 100%; mask-position: 0 0, 60px 100%; } }
+.isl-x { position: absolute; }
+.live-off .isl-wrap { animation-play-state: paused !important; }
+
+/* ---------- Плитка ДР: гирлянда-флажки и подарки ---------- */
+.cell .bd-gifts { position: absolute; pointer-events: none; z-index: 0; }
+.cell .bd-gifts { right: 6px; bottom: -5px; width: 64px; height: 18px; } /* выглядывают из нижнего края, справа — не мешают «ещё N» */
+
+.cell.vac.bday .sea { display: none; } /* ДР в отпуске: фон отпуска, рамка ДР, без моря и кораблика */
+.cell.vac.bday { border-color: rgba(245, 196, 81, .7) !important; }
+.cell.vac.bday.sel { border-color: var(--accent) !important; }
+
+/* в широких плитках ДР подарков больше */
+.bigcal .cell { container-type: inline-size; }
+.cell .bd-more { right: 74px; width: 36px; display: none; }
+@container (min-width: 128px) { .cell .bd-more { display: block; } }
+.cell.vac .bd-more { display: none !important; }

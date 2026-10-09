@@ -283,7 +283,8 @@ class Store:
             raise ValidationError("Отпуск длиннее года — проверь даты")
         return {"title": title, "category": "", "important": False, "repeat": "none",
                 "start": fmt(datetime.combine(d1, datetime.min.time())), "end": d2.strftime(DFMT),
-                "mute_work": bool(payload.get("mute_work"))}
+                "mute_work": bool(payload.get("mute_work")),
+                "seed": uuid.uuid4().hex[:8]}  # острова на горизонте перемешиваются при каждом сохранении
 
     def delete(self, rid):
         self.reminders = [r for r in self.reminders if r["id"] != rid]
@@ -410,7 +411,7 @@ class Store:
             s, e = parse(v["start"]).date(), date.fromisoformat(v["end"])
             if s <= d2 and e >= d1:
                 out.append({"id": v["id"], "title": v["title"], "start": s.strftime(DFMT),
-                            "end": v["end"], "mute_work": v.get("mute_work", False),
+                            "end": v["end"], "mute_work": v.get("mute_work", False), "seed": v.get("seed", ""),
                             "note": v.get("note", "")})
         return sorted(out, key=lambda v: v["start"])
 
