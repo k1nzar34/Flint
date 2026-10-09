@@ -26,6 +26,10 @@ def add(store, title="Задача", d="2026-10-08", t="18:00", repeat="none", n
     ("weekdays", date(2026, 10, 12), True),   # понедельник
     ("weekly", date(2026, 10, 15), True),
     ("weekly", date(2026, 10, 16), False),
+    ("monthly", date(2026, 11, 8), True),
+    ("monthly", date(2026, 11, 9), False),
+    ("yearly", date(2027, 10, 8), True),
+    ("yearly", date(2027, 10, 9), False),
 ])
 def test_occurs_on(repeat, day, expected):
     r = {"start": "2026-10-08 10:00", "repeat": repeat}
@@ -43,7 +47,7 @@ def test_period_bounds():
     ({"title": "  "}, "Напиши"),
     ({"time": "25:99"}, "дату и время"),
     ({"t": "11:00"}, "прошло"),
-    ({"repeat": "yearly"}, "повтора"),
+    ({"repeat": "hourly"}, "повтора"),
     ({"category": "sport"}, "категория"),
     ({"title": "x" * 201}, "длинное"),
 ])
@@ -180,3 +184,166 @@ def test_priority_marks_and_stats(store):
     assert "2026-10-08" not in store.month_hot(2026, 10)  # выполненный приоритет гаснет
     # приоритет не влияет на статистику: в категориях его нет
     assert all(c["key"] != "important" for c in store.stats("week", NOW)["categories"])
+
+
+# ---------- Каждый месяц / каждый год ----------
+def test_monthly_31st_falls_back_to_last_day():
+    r = {"start": "2026-01-31 10:00", "repeat": "monthly"}
+    assert occurs_on(r, date(2026, 2, 28))       # в феврале 28 дней
+    assert occurs_on(r, date(2026, 4, 30))       # в апреле 30
+    assert not occurs_on(r, date(2026, 4, 29))
+    assert occurs_on(r, date(2026, 5, 31))
+
+
+def test_yearly_feb_29():
+    r = {"start": "2024-02-29 10:00", "repeat": "yearly"}
+    assert occurs_on(r, date(2025, 2, 28))       # невисокосный год
+    assert occurs_on(r, date(2028, 2, 29))
+    assert not occurs_on(r, date(2028, 2, 28))
+
+
+# ---------- Дни рождения ----------
+def add_bday(store, **kw):
+    data = {"kind": "birthday", "title": "Ксюша", "date": "2026-11-14", "time": "10:00",
+            "birth_year": 2000, "remind": [0, 7]}
+    data.update(kw)
+    return store.upsert(data, NOW)
+
+
+def test_birthday_every_year_with_age(store):
+    add_bday(store)
+    items = store.items_between(date(2027, 11, 14), date(2027, 11, 14), NOW)
+    assert items[0]["kind"] == "birthday" and items[0]["age"] == 27
+    assert store.items_between(date(2026, 11, 14), date(2026, 11, 14), NOW)[0]["age"] == 26
+
+
+def test_birthday_without_year_has_no_age(store):
+    add_bday(store, birth_year="")
+    assert store.items_between(date(2026, 11, 14), date(2026, 11, 14), NOW)[0]["age"] is None
+
+
+@pytest.mark.parametrize("by, message", [(1800, "от 1900"), ("abc", "четыре цифры"), (2030, "от 1900")])
+def test_birthday_year_validation(store, by, message):
+    with pytest.raises(ValidationError, match=message):
+        add_bday(store, birth_year=by)
+
+
+def test_birthday_reminders_week_before_and_on_day(store):
+    add_bday(store)  # напоминать за неделю и в сам день, в 10:00
+    assert store.due(datetime(2026, 11, 7, 9, 59)) == []
+    ev = store.due(datetime(2026, 11, 7, 10, 0))
+    assert len(ev) == 1 and ev[0]["_offset"] == 7 and ev[0]["_bday"] == "2026-11-14"
+    assert store.due(datetime(2026, 11, 13, 10, 0)) == []       # «за день» не выбран
+    ev = store.due(datetime(2026, 11, 14, 10, 0))
+    assert ev[0]["_offset"] == 0
+    assert store.due(datetime(2026, 11, 14, 10, 5)) == []
+
+
+def test_birthday_week_before_crosses_new_year(store):
+    add_bday(store, date="2027-01-03")
+    ev = store.due(datetime(2026, 12, 27, 10, 0))
+    assert ev and ev[0]["_bday"] == "2027-01-03" and ev[0]["_offset"] == 7
+
+
+def test_birthday_not_in_stats_and_cannot_be_done(store):
+    r = add_bday(store, date="2026-10-08")
+    assert store.toggle_done(r["id"], "2026-10-08") is False
+    assert store.stats("week", NOW)["total"] == 0
+    assert store.month_marks(2026, 10) == {}
+    assert store.month_info(2026, 10)["bdays"]["2026-10-08"] == ["Ксюша"]
+
+
+# ---------- Отпуск ----------
+def add_vac(store, **kw):
+    data = {"kind": "vacation", "title": "", "date": "2026-10-10", "date_end": "2026-10-20", "mute_work": True}
+    data.update(kw)
+    return store.upsert(data, NOW)
+
+
+def test_vacation_range_and_default_title(store):
+    v = add_vac(store)
+    assert v["title"] == "Отпуск"
+    assert occurs_on(v, date(2026, 10, 10)) and occurs_on(v, date(2026, 10, 20))
+    assert not occurs_on(v, date(2026, 10, 21))
+    info = store.month_info(2026, 10)["vac"]
+    assert info["2026-10-10"]["start"] and info["2026-10-20"]["end"] and "2026-10-21" not in info
+    assert store.items_between(date(2026, 10, 10), date(2026, 10, 20), NOW) == []  # отпуск — не напоминание
+
+
+def test_vacation_validation(store):
+    with pytest.raises(ValidationError, match="раньше"):
+        add_vac(store, date_end="2026-10-01")
+
+
+def test_vacation_mutes_work_reminders(store):
+    add_vac(store)
+    work = add(store, title="Отчёт", d="2026-10-12", t="10:00", category="work")
+    home = add(store, title="Купить хлеб", d="2026-10-12", t="10:00", category="home")
+    assert store.due(datetime(2026, 10, 12, 10, 0)) == [home]
+    assert store.due(datetime(2026, 10, 12, 10, 5)) == []      # рабочее не «догоняет» позже
+    items = {i["title"]: i for i in store.items_between(date(2026, 10, 12), date(2026, 10, 12), NOW)}
+    assert items["Отчёт"].get("muted") is True and "muted" not in items["Купить хлеб"]
+    assert work["category"] == "work"
+
+
+def test_vacation_without_mute_keeps_work(store):
+    add_vac(store, mute_work=False)
+    work = add(store, title="Отчёт", d="2026-10-12", t="10:00", category="work")
+    assert store.due(datetime(2026, 10, 12, 10, 0)) == [work]
+
+
+def test_kind_cannot_change(store):
+    r = add(store)
+    with pytest.raises(ValidationError, match="Тип записи"):
+        store.upsert({"id": r["id"], "kind": "vacation", "date": "2026-10-10", "date_end": "2026-10-11"}, NOW)
+
+
+# ---------- Обзор года для панели месяцев ----------
+def test_year_overview(store):
+    add_bday(store)                                           # ноябрь
+    add_bday(store, title="Мама", date="2026-11-30")          # ноябрь
+    add_vac(store, date="2026-12-28", date_end="2027-01-05")  # декабрь и январь следующего года
+    add(store, title="Срочно", d="2026-10-20", important=True)
+    y = store.year_overview(2026)
+    assert y[10]["bdays"] == 2 and y[11]["vacation"] and not y[0]["vacation"]
+    assert y[9]["hot"] == 1 and y[10]["hot"] == 0
+    assert store.year_overview(2027)[0]["vacation"]
+
+
+def test_settings_choices_validated(store):
+    store.update_settings({"gender": "f", "anim_effect": "plain", "anim_speed": "slow"})
+    assert (store.settings["gender"], store.settings["anim_effect"], store.settings["anim_speed"]) == ("f", "plain", "slow")
+    store.update_settings({"gender": "x", "anim_effect": "boom", "theme": "pink"})
+    assert store.settings["gender"] == "f" and store.settings["anim_effect"] == "plain" and store.settings["theme"] == "dark"
+
+
+def test_broken_file_is_kept_aside(tmp_path):
+    path = tmp_path / "data.json"
+    path.write_text('{"reminders": [,]}', encoding="utf-8")
+    s = Store(str(path))
+    assert s.reminders == []
+    broken = list(tmp_path.glob("data.broken-*.json"))
+    assert len(broken) == 1 and broken[0].read_text(encoding="utf-8") == '{"reminders": [,]}'
+    s.save()  # новый файл не трогает отложенную копию
+    assert broken[0].exists() and path.exists()
+
+
+def test_overlapping_vacations_merge(store):
+    now = datetime(2026, 10, 1, 9, 0)
+    store.upsert({"kind": "vacation", "title": "Проба", "date": "2026-12-07", "date_end": "2026-12-13"}, now)
+    store.upsert({"kind": "vacation", "title": "Отпуск", "date": "2026-12-11", "date_end": "2026-12-17"}, now)
+    store.upsert({"kind": "vacation", "title": "Потом", "date": "2026-12-25", "date_end": "2026-12-27"}, now)
+    cl = store.vacation_clusters()
+    assert [(c["start"].day, c["end"].day, c["titles"]) for c in cl] == [(7, 17, ["Проба", "Отпуск"]), (25, 27, ["Потом"])]
+    info = store.month_info(2026, 12)["vac"]
+    assert info["2026-12-07"]["start"] and info["2026-12-17"]["end"] and not info["2026-12-13"]["end"]
+    assert info["2026-12-12"]["id"] == info["2026-12-16"]["id"]  # одно море — один кораблик
+
+
+def test_vacation_seed_changes_on_each_save(store):
+    now = datetime(2026, 10, 1, 9, 0)
+    r = store.upsert({"kind": "vacation", "title": "Море", "date": "2026-12-01", "date_end": "2026-12-20"}, now)
+    s1 = r["seed"]
+    r = store.upsert({"id": r["id"], "kind": "vacation", "title": "Море", "date": "2026-12-01", "date_end": "2026-12-20"}, now)
+    assert r["seed"] and r["seed"] != s1  # пересохранил — острова перемешаются
+    assert store.vacations_between(date(2026, 12, 1), date(2026, 12, 31))[0]["seed"] == r["seed"]

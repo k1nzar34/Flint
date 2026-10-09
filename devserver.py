@@ -12,20 +12,23 @@ from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 from api import Api, lock, store
+from core import popup_info
 
 UI_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui")
 
 
 class DevApi(Api):
-    def popup_info(self, rid):
+    def popup_info(self, rid, offset=0):
         r = store.find(rid)
         if not r:
             return None
-        return {"title": r["title"], "note": r.get("note", ""), "time": r["start"][11:],
-                "when": f"Сегодня · {r['start'][11:]}",
-                "day": datetime.now().strftime("%Y-%m-%d"), "category": r.get("category", ""),
-                "important": r.get("important", False), "theme": store.settings["theme"],
-                "snooze": store.settings["snooze_minutes"]}
+        today = datetime.now().date()
+        if r.get("kind") == "birthday":
+            from core import next_birthday
+            day = next_birthday(r, today).strftime("%Y-%m-%d")
+        else:
+            day = today.strftime("%Y-%m-%d")
+        return popup_info(r, day, int(offset), store.settings, today)
 
     def popup_action(self, rid, name):
         print(f"[popup] {name} -> {rid}")

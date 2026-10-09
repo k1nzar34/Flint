@@ -2,7 +2,7 @@ name: Test & Build
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
@@ -29,6 +29,18 @@ jobs:
 
       - name: Run tests
         run: python -m pytest -v --junitxml=reports/junit.xml
+
+      - name: Show failures as annotations
+        if: failure()
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as E
+          for tc in E.parse("reports/junit.xml").iter("testcase"):
+              for f in tc:
+                  if f.tag in ("failure", "error"):
+                      msg = ((f.get("message") or "") + " | " + (f.text or "")[-700:]).replace("\n", "%0A")
+                      print(f"::error title={tc.get('name')}::{msg}")
+          PY
 
       - name: Upload test report
         if: always()
@@ -57,6 +69,8 @@ jobs:
           pyinstaller --noconsole --onefile --name Flint
           --icon assets/icon.ico
           --add-data "ui;ui"
+          --add-data "assets/icon.png;assets"
+          --hidden-import pystray._win32
           app.py
 
       - name: Smoke check

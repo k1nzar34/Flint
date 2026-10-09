@@ -10,6 +10,10 @@
 <body data-theme="dark">
 
 <svg width="0" height="0" style="position:absolute">
+  <filter id="burnEdge" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="12" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
   <symbol id="home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
   <symbol id="calendar" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="17" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></symbol>
   <symbol id="bell" viewBox="0 0 24 24"><path d="M6 8.5a6 6 0 1 1 12 0c0 6.5 2.5 8.5 2.5 8.5h-17S6 15 6 8.5"/><path d="M10.2 20.5a2 2 0 0 0 3.6 0"/></symbol>
@@ -18,6 +22,17 @@
   <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
   <symbol id="right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+  <symbol id="gull" viewBox="0 0 24 12"><path class="wing" d="M1 8 Q6 1 12 7 Q18 1 23 8" stroke="#1E3A5F" stroke-width="2.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="crab" viewBox="0 0 30 20"><g stroke="#9A3412" stroke-width="1.6" stroke-linecap="round" fill="none"><path d="M9 14 l-4 4 M12 15 l-2 4 M18 15 l2 4 M21 14 l4 4"/></g>
+    <path d="M5 13 Q15 3 25 13 Q15 17 5 13Z" fill="#F97316" stroke="#9A3412" stroke-width=".9"/>
+    <path d="M7 11 Q3 7 4 3" stroke="#F97316" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M2 3 Q4 -1 6 3 Q4 5 2 3Z" fill="#F97316" stroke="#9A3412" stroke-width=".7"/>
+    <path d="M23 11 Q27 7 26 3" stroke="#F97316" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M24 3 Q26 -1 28 3 Q26 5 24 3Z" fill="#F97316" stroke="#9A3412" stroke-width=".7"/>
+    <path d="M13 8 V5 M17 8 V5" stroke="#9A3412" stroke-width="1"/><circle cx="13" cy="4.6" r="1.4" fill="#111"/><circle cx="17" cy="4.6" r="1.4" fill="#111"/></symbol>
+  <symbol id="down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="cake" viewBox="0 0 24 24"><path d="M4 21v-8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8M3 21h18M4 16c1.5 1.2 3 1.2 4 0s2.5-1.2 4 0 2.5 1.2 4 0 2.5-1.2 4 0M12 11V8M12 5.5c-.8-.8-.8-2 0-3 .8 1 .8 2.2 0 3z"/></symbol>
+  <symbol id="palm" viewBox="0 0 24 24"><path d="M12 22c0-6-1-9-3-12M3 10c2-4 8-5 9-1M9 10c-1-4 3-8 8-6M21 11c-2-4-8-4-10-1M12 22h-4M16 22h5"/></symbol>
+  <symbol id="gift" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="5" rx="1"/><path d="M5 13v8h14v-8M12 8v13M12 8C10 4 6.5 4.5 7.5 7c.5 1 2.5 1 4.5 1zM12 8c2-4 5.5-3.5 4.5-1-.5 1-2.5 1-4.5 1z"/></symbol>
   <symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
   <symbol id="dots" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="12" cy="19" r="1.3"/></symbol>
   <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
@@ -27,7 +42,27 @@
     </linearGradient></defs>
     <path fill="url(#fireGrad)" d="M16.5 1 C 19.5 7.5, 29 13.5, 29 25 C 29 33.3, 23.2 39, 16 39 C 8.8 39, 3 33.3, 3 25 C 3 19.2, 6 15.2, 9.6 11.6 C 9.9 15.6, 11.4 18.4, 13.8 19.6 C 12.8 13.4, 13.9 6.4, 16.5 1 Z"/>
   </symbol>
+  <symbol id="island" viewBox="0 0 24 24">
+    <circle cx="18.5" cy="5.5" r="3.2" fill="#FFD24D"/>
+    <path d="M2 21.5c3.5-1.6 6.8-2.4 10-2.4s6.5.8 10 2.4V24H2z" fill="#38BDF8"/>
+    <path d="M4.5 21c1.8-2 4.6-3 7.5-3s5.6 1 7.5 3z" fill="#F6D58E"/>
+    <path d="M11.6 19.2c.2-3.8-.4-7.2-1.9-10.1" fill="none" stroke="#9A6534" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M9.7 9.2c-1.8-1.9-4.7-2-6.6-.6 2.3-.1 4.1.6 5.2 1.6z" fill="#22C55E"/>
+    <path d="M9.7 9.2c.5-2.6 2.9-4.1 5.4-3.7-2 .8-3.3 2.2-3.8 3.8z" fill="#16A34A"/>
+    <path d="M9.7 9.2c2.4-1 5.2-.2 6.5 1.8-2.1-.7-4.1-.6-5.6.2z" fill="#22C55E"/>
+    <path d="M9.7 9.2c-1-2.4-3.5-3.6-5.9-2.9 2 .4 3.6 1.5 4.4 3z" fill="#16A34A"/>
+    <circle cx="10.2" cy="9.9" r=".9" fill="#7C4A1E"/>
+  </symbol>
+  <symbol id="boat" viewBox="0 0 26 22">
+    <path d="M12.6 1.5 V15" stroke="#4B3A2A" stroke-width="1.3" stroke-linecap="round"/>
+    <path d="M13.4 2.5 L22 13.6 H13.4 Z" fill="#FFFFFF"/>
+    <path d="M11.8 5 L5.2 13.6 H11.8 Z" fill="#FFE7A3"/>
+    <path d="M12.6 1.5 L17 3 L12.6 4.4 Z" fill="#FF5A3D"/>
+    <path d="M2.5 15.2 H23.5 L20.4 20 Q13 21.6 5.6 20 Z" fill="#E2483C"/>
+    <path d="M3.4 16.6 H22.6" stroke="#FFFFFF" stroke-width="1" stroke-opacity=".8"/>
+  </symbol>
   <symbol id="star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></symbol>
+  <symbol id="live" viewBox="0 0 24 24"><circle cx="17" cy="6" r="2.5"/><path d="M2 14c2.5-2 5-2 7.5 0s5 2 7.5 0 3.5-1.5 5-1M2 19c2.5-2 5-2 7.5 0s5 2 7.5 0 3.5-1.5 5-1"/></symbol>
   <symbol id="flame" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></symbol>
   <symbol id="x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
   <symbol id="trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></symbol>
@@ -37,6 +72,7 @@
   <symbol id="moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
   <symbol id="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
   <symbol id="power" viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M6.4 6.4a8 8 0 1 0 11.2 0"/></symbol>
+  <symbol id="chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/><path d="M8.5 11h.01M12 11h.01M15.5 11h.01"/></symbol>
   <symbol id="user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
   <symbol id="volume" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></symbol>
   <symbol id="snooze" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M5 3 2 6M19 3l3 3"/></symbol>
@@ -131,6 +167,11 @@
       <span id="edMode">Новое напоминание</span>
       <button class="icon-btn" data-act="close-editor" title="Закрыть (Esc)"><svg class="i"><use href="#x"/></svg></button>
     </div>
+    <div class="seg full kind-tabs" id="edKinds">
+      <button data-act="ed-kind" data-v="reminder"><svg class="i"><use href="#bell"/></svg>Напоминание</button>
+      <button data-act="ed-kind" data-v="birthday"><svg class="i"><use href="#cake"/></svg>День рождения</button>
+      <button data-act="ed-kind" data-v="vacation"><svg class="i"><use href="#palm"/></svg>Отпуск</button>
+    </div>
     <div class="modal-head">
       <div class="dateblock"><b id="edDay">8</b><small id="edMon">окт</small></div>
       <div style="flex:1;min-width:0">
@@ -140,19 +181,33 @@
     </div>
     <div class="form">
       <div class="field">
-        <label>Описание</label>
+        <label id="edNoteLabel">Описание</label>
         <textarea class="input" id="edNote" placeholder="Детали, ссылки, что не забыть…" maxlength="2000"></textarea>
       </div>
       <div class="row2">
-        <div class="field datefield"><label>Дата</label>
-          <button class="input datebtn" data-act="ed-datepick"><svg class="i"><use href="#calendar"/></svg><span id="edDateText"></span></button>
+        <div class="field datefield"><label id="edDateLabel">Дата</label>
+          <button class="input datebtn" data-act="ed-datepick" data-which="start"><svg class="i"><use href="#calendar"/></svg><span id="edDateText"></span></button>
           <div class="datepop" id="edDatePop"></div></div>
-        <div class="field"><label>Время</label>
+        <div class="field" data-kinds="reminder birthday"><label>Время</label>
           <input class="input" id="edTime" inputmode="numeric" maxlength="5" placeholder="ЧЧ:ММ" autocomplete="off"></div>
+        <div class="field datefield" data-kinds="vacation"><label>По</label>
+          <button class="input datebtn" data-act="ed-datepick" data-which="end"><svg class="i"><use href="#calendar"/></svg><span id="edDateEndText"></span></button>
+          <div class="datepop" id="edDatePopEnd"></div></div>
       </div>
-      <div class="presets" id="edPresets"></div>
-      <div class="field"><label>Категория</label><div class="filters" id="edCats" style="margin:0"></div></div>
-      <div class="field"><label>Повтор</label><div class="seg full" id="edRepeat"></div></div>
+      <div class="ed-hint" id="edVacHint" hidden></div>
+      <div class="presets" id="edPresets" data-kinds="reminder birthday"></div>
+      <div class="field" data-kinds="birthday"><label>Год рождения <span class="opt">· необязательно</span></label>
+        <input class="input" id="edBYear" inputmode="numeric" maxlength="4" placeholder="Например, 1998" autocomplete="off" style="max-width:220px">
+        <div class="hint gold" id="edAge"></div></div>
+      <div class="field" data-kinds="birthday">
+        <div class="label-row"><label>Когда напомнить <span class="opt">· можно несколько</span></label>
+          <button class="link gold" data-act="ed-remind-all" id="edRemindAll">Выбрать все</button></div>
+        <div class="checks" id="edRemind"></div></div>
+      <div class="field" data-kinds="vacation">
+        <button class="checkrow" data-act="ed-mute" id="edMute"><span class="cb"><svg class="i"><use href="#check"/></svg></span>
+          <span><b>Не напоминать о рабочем в отпуске</b><small>Уведомления категории «Работа» в эти дни не всплывают</small></span></button></div>
+      <div class="field" data-kinds="reminder"><label>Категория</label><div class="filters" id="edCats" style="margin:0"></div></div>
+      <div class="field" id="edRepeatField" data-kinds="reminder"><label>Повтор</label><div class="seg full grid3" id="edRepeat"></div></div>
       <div class="form-error" id="edError"></div>
       <div class="modal-actions">
         <button class="btn btn-danger" data-act="ed-delete" id="edDelete"><svg class="i"><use href="#trash"/></svg>Удалить</button>
@@ -165,6 +220,7 @@
 <div class="ctx" id="ctx"></div>
 <div class="toast" id="toast"><svg class="i"><use href="#okc"/></svg><span></span></div>
 
+<script src="fx.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

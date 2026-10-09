@@ -28,6 +28,15 @@
   .pop .actions { margin-top: auto; width: 100%; display: flex; flex-direction: column; gap: 10px; }
   .pop .actions .row { display: flex; gap: 10px; }
   .pop .actions .row .btn { flex: 1; height: 42px; font-size: 13px; white-space: nowrap; padding: 0 10px; }
+  /* день рождения */
+  .pop.bday { background: radial-gradient(420px 260px at 50% -40px, rgba(245, 196, 81, .35), transparent 70%),
+      linear-gradient(180deg, var(--card-2), var(--card)); }
+  .pop.bday .kicker { color: #E9B23C; }
+  .pop.bday .btn-primary { background: linear-gradient(135deg, #FFD978, #E39A2C); color: #2A1A00; box-shadow: 0 8px 22px rgba(245, 196, 81, .3); }
+  .pop .age { margin-top: 10px; font-size: 15px; font-weight: 650; color: #E9B23C; }
+  .pop .confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .pop .confetti i { position: absolute; top: -10px; width: 6px; height: 10px; border-radius: 2px; animation: fall 3.2s linear infinite; }
+  @keyframes fall { 0% { transform: translateY(0) rotate(0); opacity: 0; } 10% { opacity: .9; } 100% { transform: translateY(460px) rotate(540deg); opacity: 0; } }
 </style>
 </head>
 <body data-theme="dark">
@@ -53,13 +62,14 @@
   <div class="kicker">Напоминание</div>
   <h1 id="title">…</h1>
   <div class="when"><svg class="i"><use href="#clock"/></svg><span id="when"></span></div>
+  <div class="age" id="age" hidden></div>
   <div class="note" id="note"></div>
   <div class="tags" id="tags"></div>
   <div class="actions">
     <button class="btn btn-primary btn-lg" data-a="open">Открыть</button>
     <div class="row">
       <button class="btn btn-ghost" data-a="snooze"><svg class="i"><use href="#snooze"/></svg><span id="later">Позже</span></button>
-      <button class="btn btn-ghost" data-a="done"><svg class="i"><use href="#check"/></svg>Выполнено</button>
+      <button class="btn btn-ghost" data-a="done" id="doneBtn"><svg class="i"><use href="#check"/></svg><span>Выполнено</span></button>
     </div>
   </div>
 </div>
@@ -75,7 +85,7 @@ const ready = new Promise((r) => (DEV || window.pywebview?.api) ? r() : addEvent
 async function call(name) {
   await ready;
   if (!DEV) return window.pywebview.api[name](...[...arguments].slice(1));
-  const map = { info: ["popup_info", params.get("id")], action: ["popup_action", params.get("id"), arguments[1]] };
+  const map = { info: ["popup_info", params.get("id"), params.get("offset") || 0], action: ["popup_action", params.get("id"), arguments[1]] };
   const [m, ...args] = map[name];
   return (await fetch("/api/" + m, { method: "POST", body: JSON.stringify(args) })).json();
 }
@@ -87,7 +97,24 @@ async function call(name) {
   document.getElementById("title").textContent = info.title;
   document.getElementById("when").textContent = info.when;
   document.getElementById("note").textContent = info.note || "";
-  document.getElementById("later").textContent = `+${info.snooze} мин`;
+  document.getElementById("later").textContent = info.snooze >= 60 ? `+${info.snooze / 60} ч` : `+${info.snooze} мин`;
+  if (info.kind === "birthday") {
+    const pop = document.querySelector(".pop");
+    pop.classList.add("bday");
+    document.querySelector(".kicker").textContent = "🎂 День рождения";
+    if (info.age) {
+      const a = document.getElementById("age");
+      a.hidden = false;
+      a.textContent = info.offset === 0 ? `Сегодня исполняется ${info.age} 🎉` : `Исполнится ${info.age}`;
+    }
+    document.querySelector("#doneBtn span").textContent = "Понятно";
+    const colors = ["#F5C451", "#FF5C8A", "#5E6BFF", "#35D49A", "#FF7A1A", "#A27BFF"];
+    const conf = document.createElement("div");
+    conf.className = "confetti";
+    conf.innerHTML = Array.from({ length: 14 }, (_, i) =>
+      `<i style="left:${5 + i * 6.7}%;background:${colors[i % 6]};animation-delay:${-(i * .37) % 3.2}s;animation-duration:${2.6 + (i % 4) * .35}s"></i>`).join("");
+    pop.prepend(conf);
+  }
   const tags = [];
   if (info.category && CATS[info.category]) {
     const [t, c] = CATS[info.category];

@@ -309,6 +309,7 @@ svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-widt
 
 /* ---------- Настройки ---------- */
 .settings { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.settings > .col { display: flex; flex-direction: column; gap: 20px; min-width: 0; } /* колонки независимы: карточка справа растёт, слева ничего не съезжает */
 .setting { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-top: 1px solid var(--border); }
 .setting:first-of-type { border-top: 0; padding-top: 0; }
 .setting .ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); flex-shrink: 0; }
@@ -364,6 +365,7 @@ input[type="date"].input, input[type="time"].input { font-variant-numeric: tabul
 .presets button:hover { filter: brightness(1.2); }
 .seg.full { display: flex; }
 .seg.full button { flex: 1; padding: 9px 6px; }
+.seg.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
 .form-error { color: var(--danger); font-size: 13px; min-height: 18px; font-weight: 550; }
 .modal-actions { display: flex; gap: 10px; align-items: center; }
 .modal-actions .btn-primary { flex: 1; }
@@ -378,7 +380,9 @@ input[type="date"].input, input[type="time"].input { font-variant-numeric: tabul
 .ctx button:hover { background: var(--hover); }
 .ctx button.red { color: var(--danger); }
 .ctx button.red:hover { background: var(--danger-soft); }
-.ctx button.confirm { background: var(--danger); color: #fff; }
+.ctx button.confirm, .ctx button.red.confirm:hover, .btn.confirm, .btn-danger.confirm:hover {
+  background: var(--danger); color: #fff; box-shadow: 0 6px 18px color-mix(in srgb, var(--danger) 35%, transparent); }
+.ctx button.red.confirm:hover, .btn-danger.confirm:hover { background: color-mix(in srgb, var(--danger) 85%, #000); }
 .toast {
   position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 20px); opacity: 0; z-index: 70;
   padding: 12px 18px; border-radius: 14px; background: var(--card-3); border: 1px solid var(--border-2);
@@ -446,3 +450,602 @@ input[type="date"].input, input[type="time"].input { font-variant-numeric: tabul
 .chip svg.i { width: 11px; height: 11px; stroke-width: 2.6; flex-shrink: 0; color: #FF7A1A; }
 
 @media (prefers-reduced-motion: reduce) { .item.hot:not(.done) { animation: none; } }
+
+/* ---------- Кнопка месяца и панель выбора ---------- */
+.mp-anchor { position: relative; }
+.mbtn {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 19px; font-weight: 700; letter-spacing: -0.01em;
+  padding: 4px 8px 4px 10px; margin-left: -10px; border-radius: 11px; transition: background .15s;
+}
+.mbtn svg.i { width: 16px; height: 16px; color: var(--muted); transition: transform .2s; }
+.mbtn:hover { background: var(--hover); }
+.mpop {
+  position: absolute; top: calc(100% + 6px); left: -8px; z-index: 20; width: 372px; padding: 14px;
+  border-radius: 20px; background: var(--card-2); border: 1px solid var(--border-2); box-shadow: 0 22px 60px rgba(0, 0, 0, .5);
+}
+.mpop.enter { animation: mpIn .22s cubic-bezier(.2, .9, .3, 1.1); transform-origin: 30px 0; }
+@keyframes mpIn { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: none; } }
+.mp-year { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.mp-year b { font-size: 17px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.mp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mt {
+  min-height: 60px; padding: 9px 10px 8px; border-radius: 14px; background: var(--card-3); border: 1px solid transparent;
+  text-align: left; display: flex; flex-direction: column; justify-content: space-between; gap: 6px; transition: border-color .15s;
+}
+.mt b { font-size: 13.5px; font-weight: 650; }
+.mt:hover { border-color: var(--border-2); }
+.mt.cur { border-color: var(--accent); }
+.mt.on { background: var(--grad); color: #fff; box-shadow: var(--glow); border-color: transparent; }
+.mks { display: flex; flex-wrap: wrap; gap: 4px; }
+.mk { font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 6px; line-height: 16px; white-space: nowrap; }
+.mk.bd { background: rgba(245, 196, 81, .16); color: #E9B23C; }
+.mk.vc { background: rgba(14, 165, 233, .16); color: #2BA8E8; }
+.mk.fr { background: rgba(255, 122, 26, .15); color: #FF7A1A; }
+.mt.on .mk { background: rgba(255, 255, 255, .2); color: #fff; }
+.mp-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.mp-legend .mk { font-weight: 600; }
+
+/* ---------- Типы записей: цвета ---------- */
+:root {
+  --gold: #F5C451;
+  --gold-2: #E39A2C;
+  --gold-grad: linear-gradient(135deg, #FFD978 0%, #E39A2C 100%);
+  --gold-ink: #2A1A00;
+  --gold-soft: rgba(245, 196, 81, .15);
+  --sea: #0EA5E9;
+  --sea-grad: linear-gradient(160deg, #38BDF8 0%, #0EA5E9 45%, #2563EB 100%);
+  --sea-soft: rgba(14, 165, 233, .16);
+}
+[data-theme="light"] { --gold-soft: rgba(227, 154, 44, .14); --sea-soft: rgba(14, 165, 233, .12); }
+
+[hidden] { display: none !important; }
+.kind-tabs { margin: -4px 0 18px; }
+.kind-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.kind-tabs button svg.i { width: 16px; height: 16px; }
+.modal[data-kind="birthday"] .kind-tabs button.on { background: var(--gold-grad); color: var(--gold-ink); box-shadow: 0 6px 18px rgba(245, 196, 81, .3); }
+.modal[data-kind="vacation"] .kind-tabs button.on { background: var(--sea-grad); box-shadow: 0 6px 18px rgba(14, 165, 233, .3); }
+.modal[data-kind="birthday"] .modal-head .dateblock { background: var(--gold-grad); color: var(--gold-ink); box-shadow: 0 8px 22px rgba(245, 196, 81, .35); }
+.modal[data-kind="birthday"] .modal-head .dateblock small { color: rgba(42, 26, 0, .7); }
+.modal[data-kind="vacation"] .modal-head .dateblock { background: var(--sea-grad); box-shadow: 0 8px 22px rgba(14, 165, 233, .35); }
+.modal[data-kind="birthday"] .btn-primary { background: var(--gold-grad); color: var(--gold-ink); box-shadow: 0 8px 22px rgba(245, 196, 81, .3); }
+.modal[data-kind="vacation"] .btn-primary { background: var(--sea-grad); box-shadow: 0 8px 22px rgba(14, 165, 233, .3); }
+.modal[data-kind="birthday"] .presets button { background: var(--gold-soft); color: var(--gold-2); }
+.modal[data-kind="birthday"] .input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
+.modal[data-kind="vacation"] .input:focus { border-color: var(--sea); box-shadow: 0 0 0 3px var(--sea-soft); }
+.opt { font-weight: 500; color: var(--faint); }
+.hint { font-size: 12.5px; min-height: 16px; }
+.hint.gold, .link.gold { color: var(--gold-2); }
+[data-theme="dark"] .hint.gold, [data-theme="dark"] .link.gold { color: var(--gold); }
+.label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.link { font-size: 12px; font-weight: 650; }
+.link:hover { text-decoration: underline; }
+
+.checks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ck, .checkrow {
+  display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 14px; text-align: left;
+  border: 1px solid var(--border-2); background: var(--card-3); transition: border-color .15s, background .15s;
+}
+.ck b, .checkrow b { display: block; font-size: 13px; font-weight: 620; }
+.ck small, .checkrow small { display: block; font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+.cb { width: 20px; height: 20px; border-radius: 7px; border: 2px solid var(--faint); flex-shrink: 0; display: grid; place-items: center; color: transparent; transition: all .15s; }
+.cb svg.i { width: 13px; height: 13px; stroke-width: 3.2; }
+.ck.on { border-color: var(--gold); background: var(--gold-soft); }
+.ck.on .cb { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); }
+.checkrow { width: 100%; }
+.checkrow.on { border-color: var(--sea); background: var(--sea-soft); }
+.checkrow.on .cb { background: var(--sea); border-color: var(--sea); color: #fff; }
+.datepop .day.range { background: var(--sea-soft); border-radius: 8px; }
+.modal[data-kind="vacation"] .datepop .day.sel { background: var(--sea-grad); box-shadow: 0 6px 16px rgba(14, 165, 233, .35); }
+.modal[data-kind="birthday"] .datepop .day.sel { background: var(--gold-grad); color: var(--gold-ink); box-shadow: 0 6px 16px rgba(245, 196, 81, .35); }
+
+.confetto { position: fixed; z-index: 80; width: 7px; height: 11px; border-radius: 2px; pointer-events: none; }
+
+/* ---------- День рождения в списках ---------- */
+.item.bday { border-color: rgba(245, 196, 81, .45); background: linear-gradient(100deg, var(--gold-soft), var(--card-3) 55%); }
+.bday-ic { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
+  background: var(--gold-grad); color: var(--gold-ink); box-shadow: 0 4px 12px rgba(245, 196, 81, .35); }
+.bday-ic svg.i { width: 15px; height: 15px; stroke-width: 2.2; }
+.tag.gold { --c: var(--gold-2); }
+[data-theme="dark"] .tag.gold { --c: var(--gold); }
+.dateblock.gold { background: var(--gold-soft); }
+.dateblock.gold.today { background: var(--gold-grad); color: var(--gold-ink); }
+.dateblock.gold.today small { color: rgba(42, 26, 0, .7); }
+
+/* ---------- Баннер отпуска ---------- */
+.vac-banner {
+  position: relative; overflow: hidden; display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  padding: 14px 16px 22px; border-radius: 18px; color: #fff; background: var(--sea-grad);
+  box-shadow: 0 8px 24px -10px rgba(14, 165, 233, .6);
+}
+.vac-banner .vb-ic { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: rgba(255, 255, 255, .2); z-index: 1; }
+.vac-banner .vb-txt { z-index: 1; }
+.vac-banner b { display: block; font-size: 15px; font-weight: 650; }
+.vac-banner small { font-size: 12px; color: rgba(255, 255, 255, .85); }
+
+/* волны — общие для баннера и плиток календаря */
+.waves, .sea { position: absolute; left: 0; right: 0; bottom: 0; pointer-events: none; }
+.waves { height: 18px; }
+.waves i, .sea i {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 100%;
+  background-repeat: repeat-x; background-size: 60px 100%;
+  animation: waveMove 6s linear infinite;
+}
+.waves i:first-child, .sea i:first-child {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 10 Q15 4 30 10 T60 10 V20 H0Z' fill='%23ffffff' fill-opacity='.22'/%3E%3C/svg%3E");
+}
+.waves i:last-child, .sea i:last-child {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 13 Q15 18 30 13 T60 13 V20 H0Z' fill='%23ffffff' fill-opacity='.3'/%3E%3C/svg%3E");
+  animation-duration: 4.2s; animation-direction: reverse;
+}
+@keyframes waveMove { from { background-position-x: 0; } to { background-position-x: 60px; } }
+
+/* ---------- Мини-календарь: день рождения и отпуск ---------- */
+.day .num { position: relative; z-index: 1; }
+.day.bday:not(.sel) { background: var(--gold-grad); color: var(--gold-ink); font-weight: 750; box-shadow: 0 4px 12px rgba(245, 196, 81, .3); }
+.day.bday.today:not(.sel) { box-shadow: inset 0 0 0 2px var(--accent), 0 4px 12px rgba(245, 196, 81, .3); }
+.day .cake { position: absolute; top: -5px; right: -3px; font-size: 12px; z-index: 2; pointer-events: none; }
+.day.bday .dot { display: none; }
+.day.vac::before {
+  content: ""; position: absolute; top: 5px; bottom: 5px; left: -2px; right: -2px; z-index: 0;
+  background: var(--sea-soft); border-top: 1px solid rgba(14, 165, 233, .35); border-bottom: 1px solid rgba(14, 165, 233, .35);
+}
+.day.vac.vs::before { left: 3px; border-left: 1px solid rgba(14, 165, 233, .35); border-radius: 11px 0 0 11px; }
+.day.vac.ve::before { right: 3px; border-right: 1px solid rgba(14, 165, 233, .35); border-radius: 0 11px 11px 0; }
+.day.vac.vs.ve::before { border-radius: 11px; }
+.day.vac:not(.sel):not(.bday):not(.hot) { color: var(--sea); font-weight: 650; }
+[data-theme="dark"] .day.vac:not(.sel):not(.bday):not(.hot) { color: #7DD3FC; }
+
+/* ---------- Большой календарь: день рождения ---------- */
+.cell { position: relative; }
+.cell .n, .cell .chip, .cell .more-n { position: relative; z-index: 1; }
+.cell.bday { border-color: rgba(245, 196, 81, .5); background: linear-gradient(180deg, var(--gold-soft), var(--card-3) 65%); }
+.cell.bday:not(.hot) .n { background: var(--gold-grad); color: var(--gold-ink); box-shadow: 0 4px 12px rgba(245, 196, 81, .35); }
+.cell.bday.sel { border-color: var(--accent); }
+.cell .cake { position: absolute; top: 8px; right: 9px; font-size: 15px; z-index: 1; }
+.chip.gold { --c: var(--gold); font-weight: 600; }
+.confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.confetti i { position: absolute; top: -8px; width: 4px; height: 7px; border-radius: 1px; opacity: .8; animation: confFall 4.5s linear infinite; }
+.confetti i:nth-child(1) { left: 34%; background: #FF5C8A; animation-delay: -.4s; }
+.confetti i:nth-child(2) { left: 48%; background: #5E6BFF; animation-delay: -1.7s; animation-duration: 5.2s; }
+.confetti i:nth-child(3) { left: 60%; background: #35D49A; animation-delay: -3.1s; }
+.confetti i:nth-child(4) { left: 72%; background: #F5C451; animation-delay: -2.2s; animation-duration: 3.9s; }
+.confetti i:nth-child(5) { left: 84%; background: #FF7A1A; animation-delay: -.9s; animation-duration: 5.6s; }
+.confetti i:nth-child(6) { left: 24%; background: #A27BFF; animation-delay: -3.8s; animation-duration: 4.8s; }
+@keyframes confFall {
+  0% { transform: translateY(0) rotate(0); opacity: 0; }
+  10% { opacity: .85; }
+  90% { opacity: .85; }
+  100% { transform: translateY(110px) rotate(360deg); opacity: 0; }
+}
+
+/* ---------- Большой календарь: отпуск ---------- */
+.cell.vac { background: linear-gradient(180deg, rgba(56, 189, 248, .22), rgba(37, 99, 235, .32)); border-color: rgba(14, 165, 233, .35); }
+[data-theme="light"] .cell.vac { background: linear-gradient(180deg, rgba(56, 189, 248, .16), rgba(37, 99, 235, .2)); }
+.cell.vac.sel { border-color: var(--accent); }
+.cell .sea { height: 22px; }
+.cell .sea i:first-child { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 10 Q15 4 30 10 T60 10 V20 H0Z' fill='%2338BDF8' fill-opacity='.45'/%3E%3C/svg%3E"); }
+.cell .sea i:last-child { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 13 Q15 18 30 13 T60 13 V20 H0Z' fill='%232563EB' fill-opacity='.55'/%3E%3C/svg%3E"); }
+.vac-label { position: absolute; left: 8px; bottom: 5px; z-index: 2; font-size: 11px; font-weight: 650; color: #fff;
+  text-shadow: 0 1px 3px rgba(10, 40, 90, .6); white-space: nowrap; max-width: calc(100% - 12px); overflow: hidden; text-overflow: ellipsis; }
+.chip.gold { white-space: normal; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.cell.bday .cake { font-size: 13px; top: 9px; right: 8px; }
+#edDatePopEnd { left: auto; right: 0; }
+
+/* =====================================================================
+   Анимации (ui/fx.js)
+   ===================================================================== */
+:root {
+  --lava: linear-gradient(115deg, #FFD24D 0%, #FF8A1F 22%, #FF3D2E 42%, #C9183A 52%, #FF5A1F 64%, #FFB23D 82%, #FFD24D 100%);
+  --lava-glow: 0 0 22px rgba(255, 106, 30, .7), 0 0 40px rgba(255, 60, 30, .3);
+  --wave: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 200' preserveAspectRatio='none'%3E%3Cpath d='M0 100 Q14 92 28 100 T56 100 V200 H0Z' fill='black'/%3E%3C/svg%3E");
+}
+
+/* контейнеры и цели переливания */
+.cal, .bigcal, #nav { position: relative; }
+.day, .cell, .nav button { isolation: isolate; }
+.nav button { position: relative; overflow: hidden; }
+
+.fx-ghost, .fx-fill, .fx-pill {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden;
+  border-radius: inherit; background: var(--grad); box-shadow: var(--glow);
+}
+.fx-ghost .lv, .fx-fill .lv, .fx-pill .lv {
+  position: absolute; inset: -25%;
+  background:
+    radial-gradient(ellipse 20% 11% at 30% 28%, rgba(255, 245, 200, .5), transparent 70%),
+    repeating-radial-gradient(ellipse at 40% 50%, rgba(255, 240, 200, .1) 0 3px, transparent 3px 11px),
+    var(--lava);
+  background-size: 100% 100%, 160% 160%, 300% 300%;
+  animation: lavaFlow 1.1s linear infinite;
+}
+.fx-ghost.plain .lv, .fx-fill.plain .lv, .fx-pill.plain .lv { display: none; }
+.fx-ghost.lava, .fx-fill.lava { box-shadow: var(--lava-glow); }
+.fx-pill .lv { opacity: 0; }
+@keyframes lavaFlow {
+  from { background-position: 0 0, 0% 0%, 0% 50%; }
+  to   { background-position: 8% 6%, 100% 100%, 100% 50%; }
+}
+.wavy {
+  -webkit-mask-image: var(--wave); mask-image: var(--wave);
+  -webkit-mask-repeat: repeat-x; mask-repeat: repeat-x;
+  -webkit-mask-size: 56px 200%; mask-size: 56px 200%;
+}
+.fx-stream { position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none; overflow: visible; }
+.fx-stream path { fill: none; stroke-linecap: round; filter: drop-shadow(0 0 4px rgba(255, 110, 40, .8)); }
+.fx-stream.plain path { filter: drop-shadow(0 0 4px rgba(110, 100, 255, .7)); }
+
+/* пока льётся — у цели своей подсветки нет, её рисует жидкость */
+.pouring .day.sel, #nav.pouring button.active { background: transparent !important; box-shadow: none !important; }
+.seg { position: relative; isolation: isolate; }
+.seg.sliding button.on { background: transparent !important; box-shadow: none !important; }
+.fx-pill { border-radius: 10px; }
+
+/* искры */
+.fx-spark { position: absolute; z-index: 4; width: 6px; height: 6px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle at 35% 35%, #FFF6D0, #FFB23D 55%, #FF4A1F); box-shadow: 0 0 6px rgba(255, 120, 40, .8); }
+.fx-spark.fixed { position: fixed; z-index: 90; }
+
+/* нажатие: проседание и тёплая волна */
+.btn, .nav button, .seg button, .fchip, .icon-btn, .side-actions button, .presets button, .mbtn, .mt, .ck, .checkrow, .summary, .vac-banner {
+  position: relative; overflow: hidden; isolation: isolate;
+  transition: transform .18s cubic-bezier(.3, 1.6, .5, 1), background .15s, color .15s, border-color .15s, filter .15s, box-shadow .15s;
+}
+.btn:active, .nav button:active, .seg button:active, .fchip:active, .icon-btn:active, .side-actions button:active,
+.presets button:active, .mbtn:active, .mt:active, .ck:active, .checkrow:active, .summary:active, .vac-banner:active,
+.day:active, .cell:active, .check:active { transform: scale(.95); }
+.day, .cell, .check { transition: transform .18s cubic-bezier(.3, 1.6, .5, 1), background .12s, border-color .12s; }
+.fx-ripple { position: absolute; z-index: -1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 190, 120, .45), rgba(255, 120, 60, .12) 60%, transparent 70%); }
+.fx-ripple.plain { background: radial-gradient(circle, rgba(170, 180, 255, .4), rgba(120, 110, 255, .1) 60%, transparent 70%); }
+
+/* перелистывание месяца */
+.slide-l { animation: slideL .32s cubic-bezier(.2, .8, .3, 1); }
+.slide-r { animation: slideR .32s cubic-bezier(.2, .8, .3, 1); }
+@keyframes slideL { from { opacity: .2; transform: translateX(22px); } to { opacity: 1; transform: none; } }
+@keyframes slideR { from { opacity: .2; transform: translateX(-22px); } to { opacity: 1; transform: none; } }
+
+/* живой огонь */
+.flame svg, .item .title .fire svg.i { transform-origin: 50% 100%; animation: flick 1.9s ease-in-out infinite; }
+@keyframes flick {
+  0%, 100% { transform: scale(1, 1) skewX(0); }
+  25% { transform: scale(.97, 1.05) skewX(-2deg); }
+  50% { transform: scale(1.02, .97) skewX(1deg); }
+  75% { transform: scale(.98, 1.04) skewX(2deg); }
+}
+.item.done .title .fire svg.i { animation: none; }
+
+/* «выполнено»: галочка прорисовывается, огонь гаснет с дымком */
+.item.just .check { animation: checkPop .4s cubic-bezier(.3, 1.6, .5, 1); }
+.item.just .check svg.i path { stroke-dasharray: 24; animation: draw .45s .05s ease-out both; }
+@keyframes checkPop { 0% { transform: scale(.7); } 100% { transform: scale(1); } }
+@keyframes draw { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+.item.just .title .fire { position: relative; animation: douse .9s ease-out; }
+.item.just .title .fire::after {
+  content: ""; position: absolute; left: 50%; top: -2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(170, 170, 190, .7), transparent 70%); animation: smoke 1s ease-out forwards;
+}
+@keyframes douse { 0% { color: #FF7A1A; transform: scale(1.25); } 100% { transform: none; } }
+@keyframes smoke { 0% { transform: translateY(0) scale(.6); opacity: .9; } 100% { transform: translateY(-18px) scale(2.2); opacity: 0; } }
+
+/* смена темы — круговое раскрытие (View Transitions) */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+
+/* анимации выключены */
+.anim-off *, .anim-off *::before, .anim-off *::after { animation: none !important; }
+.anim-off .confetti { display: none; }
+.setting { flex-wrap: wrap; row-gap: 10px; }
+.setting .txt { flex: 1 1 170px; }
+.setting > .seg { margin-left: auto; }
+
+/* ---------- v1.1.1: шапочка, островок, волны, кораблик ---------- */
+svg.isl { width: 16px; height: 16px; flex-shrink: 0; display: inline-block; vertical-align: -3px; }
+.mk svg.isl { width: 13px; height: 13px; vertical-align: -2px; }
+.vac-banner .vb-ic svg.isl { width: 24px; height: 24px; }
+.vac-banner .vb-ic { background: rgba(255, 255, 255, .22); }
+
+/* праздничная шапочка на дате */
+svg.hat { position: absolute; width: 13px; height: 16px; pointer-events: none; z-index: 2;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .35)); transform-origin: 50% 100%; }
+.cell .n svg.hat { top: -8px; right: -7px; transform: rotate(22deg); }
+.day svg.hat { top: -6px; right: 2px; transform: rotate(20deg); width: 12px; height: 15px; }
+.cell .cake, .day .cake { display: none; }
+
+/* ярлык отпуска — справа сверху */
+.vac-label { top: 9px; right: 7px; left: auto; bottom: auto; display: inline-flex; align-items: center; gap: 4px;
+  max-width: calc(100% - 44px); padding: 2px 6px 2px 3px; border-radius: 8px; background: rgba(8, 30, 70, .35); backdrop-filter: blur(4px); }
+.vac-label span { overflow: hidden; text-overflow: ellipsis; }
+[data-theme="light"] .vac-label { background: rgba(14, 116, 200, .55); }
+
+/* волны контрастнее */
+.vac-banner .waves { height: 22px; }
+.vac-banner .waves i:first-child { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 10 Q15 4 30 10 T60 10 V20 H0Z' fill='%23ffffff' fill-opacity='.28'/%3E%3C/svg%3E"); }
+.vac-banner .waves i:last-child { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 13 Q15 18 30 13 T60 13 V20 H0Z' fill='%231E3A8A' fill-opacity='.55'/%3E%3Cpath d='M0 13 Q15 18 30 13 T60 13' fill='none' stroke='%23ffffff' stroke-opacity='.55' stroke-width='1.2'/%3E%3C/svg%3E"); }
+[data-theme="dark"] .cell .sea i:last-child { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 13 Q15 18 30 13 T60 13 V20 H0Z' fill='%2360A5FA' fill-opacity='.7'/%3E%3Cpath d='M0 13 Q15 18 30 13 T60 13' fill='none' stroke='%23E0F2FE' stroke-opacity='.75' stroke-width='1.1'/%3E%3C/svg%3E"); }
+[data-theme="dark"] .cell .sea i:first-child { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 10 Q15 4 30 10 T60 10 V20 H0Z' fill='%2338BDF8' fill-opacity='.5'/%3E%3C/svg%3E"); }
+
+/* кораблик */
+.boat { position: absolute; left: 0; top: -12px; width: 24px; height: 20px; pointer-events: none; opacity: 0; }
+.boat svg { width: 100%; height: 100%; display: block; transform-origin: 50% 90%; animation: bob 2.4s ease-in-out infinite;
+  filter: drop-shadow(0 2px 2px rgba(0, 20, 60, .35)); }
+@keyframes bob { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-2px) rotate(4deg); } }
+
+/* ---------- Смена типа записи: перетекание вкладки и вспышки ---------- */
+@property --r { syntax: "<percentage>"; inherits: false; initial-value: 0%; }
+#edKinds.sliding button.on { background: transparent !important; box-shadow: none !important; }
+.fx-tab { position: absolute; z-index: -1; border-radius: 10px; pointer-events: none; overflow: hidden; }
+.fx-tab > i { position: absolute; inset: 0; opacity: 0; }
+.modal-head .dateblock { position: relative; overflow: hidden; isolation: isolate; }
+.fx-burst, .fx-burst-ring { position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; }
+.fx-burst {
+  -webkit-mask-image: radial-gradient(var(--r) var(--r) at 50% 50%, transparent 92%, #000 100%);
+  mask-image: radial-gradient(var(--r) var(--r) at 50% 50%, transparent 92%, #000 100%);
+}
+.fx-burst-ring {
+  background: radial-gradient(var(--r) var(--r) at 50% 50%, transparent 62%, color-mix(in srgb, var(--kc) 70%, transparent) 78%,
+    color-mix(in srgb, var(--kc) 40%, #fff) 88%, transparent 100%);
+  filter: blur(1px);
+}
+.fx-ember { position: fixed; z-index: 90; width: 6px; height: 9px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; pointer-events: none;
+  background: radial-gradient(circle at 50% 70%, #fff, var(--kc) 60%, color-mix(in srgb, var(--kc) 60%, #000)); box-shadow: 0 0 8px var(--kc); }
+
+/* ---------- Смена темы: горящий край ---------- */
+@property --br { syntax: "<length>"; inherits: false; initial-value: 0px; }
+.fx-burn {
+  position: fixed; inset: -40px; z-index: 9999; pointer-events: none; view-transition-name: burn;
+  /* тонкая горящая кромка: узкая полоска обугливания, яркий край и лёгкое свечение */
+  background: radial-gradient(circle at calc(var(--x) + 40px) calc(var(--y) + 40px),
+    transparent calc(var(--br) - 16px), rgba(40, 10, 2, .45) calc(var(--br) - 8px), #9A3412 calc(var(--br) - 4px),
+    #FF7A1A calc(var(--br) - 2px), #FFE08A var(--br), rgba(255, 140, 40, .4) calc(var(--br) + 3px), transparent calc(var(--br) + 10px));
+  filter: url(#burnEdge);
+}
+.fx-cinder { position: absolute; width: 7px; height: 7px; border-radius: 50%; margin: -3.5px 0 0 -3.5px;
+  background: radial-gradient(circle, #FFF6D0 0 25%, #FFB020 45%, #F0590C 75%, rgba(180, 50, 0, .6) 100%);
+  box-shadow: 0 0 6px 1px rgba(255, 106, 0, .9), 0 0 2px rgba(150, 40, 0, .8); }
+[data-theme="light"] .fx-cinder { box-shadow: 0 0 7px 2px rgba(255, 90, 0, .85), 0 0 1px 1px rgba(140, 35, 0, .9); }
+::view-transition-group(burn), ::view-transition-old(burn), ::view-transition-new(burn) { animation: none; }
+
+/* ---------- Фоновые анимации не сбрасываются при перерисовке ---------- */
+:root { --clock: 0ms; }
+.waves i:first-child, .sea i:first-child { animation-delay: var(--clock); }
+.waves i:last-child, .sea i:last-child { animation-delay: var(--clock); }
+.confetti i:nth-child(1) { animation-delay: calc(var(--clock) - .4s); }
+.confetti i:nth-child(2) { animation-delay: calc(var(--clock) - 1.7s); }
+.confetti i:nth-child(3) { animation-delay: calc(var(--clock) - 3.1s); }
+.confetti i:nth-child(4) { animation-delay: calc(var(--clock) - 2.2s); }
+.confetti i:nth-child(5) { animation-delay: calc(var(--clock) - .9s); }
+.confetti i:nth-child(6) { animation-delay: calc(var(--clock) - 3.8s); }
+.flame svg, .item .title .fire svg.i { animation-delay: var(--clock); }
+.item.hot:not(.done) { animation-delay: var(--clock); }
+.boat svg { animation-delay: var(--clock); }
+
+/* логотип: спокойное свечение по всему периметру */
+.logo {
+  box-shadow: 0 0 0 1px rgba(140, 130, 255, .18), 0 0 18px rgba(255, 110, 60, .28), 0 0 32px rgba(90, 80, 255, .32);
+  animation: logoGlow 5s ease-in-out infinite;
+  animation-delay: var(--clock);
+}
+@keyframes logoGlow {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(140, 130, 255, .18), 0 0 16px rgba(255, 110, 60, .24), 0 0 28px rgba(90, 80, 255, .28); }
+  50%      { box-shadow: 0 0 0 1px rgba(160, 150, 255, .24), 0 0 22px rgba(255, 110, 60, .34), 0 0 38px rgba(90, 80, 255, .38); }
+}
+.logo img { border-radius: 15px; }
+
+/* светлая тема: выбранный день заметнее, а не только рамка */
+[data-theme="light"] .cell.sel { background: color-mix(in srgb, var(--accent) 15%, #fff);
+  box-shadow: 0 6px 18px rgba(94, 107, 255, .2); }
+[data-theme="light"] .cell.vac.sel { background: linear-gradient(180deg, rgba(94, 107, 255, .2), rgba(37, 99, 235, .28));
+  box-shadow: 0 6px 18px rgba(94, 107, 255, .2); }
+
+/* пояснение под автозапуском */
+.warn-note { display: flex; gap: 10px; align-items: flex-start; margin: 2px 0 6px; padding: 11px 13px; border-radius: 12px;
+  font-size: 12px; line-height: 1.45; color: var(--muted); background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); }
+.warn-note svg.i { flex: none; width: 16px; height: 16px; margin-top: 1px; color: var(--accent); }
+.warn-note b { display: block; color: var(--text); font-size: 12.5px; margin-bottom: 2px; }
+.warn-note.off { background: color-mix(in srgb, #F59E0B 12%, transparent); border-color: color-mix(in srgb, #F59E0B 40%, transparent); }
+.warn-note.off svg.i { color: #F59E0B; }
+
+
+/* ---------- Мини-календарь на главной: мягкие подсветки ---------- */
+.cal.mini .day { width: 42px; justify-self: center; }
+.cal.mini .day.vac::before { display: none; }
+.cal.mini .day.vac:not(.sel) { background: rgba(56, 189, 248, .16); }
+[data-theme="light"] .cal.mini .day.vac:not(.sel) { background: rgba(14, 165, 233, .13); }
+.cal.mini .day.vac:not(.sel):not(.bday) { color: var(--sea); font-weight: 650; }
+[data-theme="dark"] .cal.mini .day.vac:not(.sel):not(.bday) { color: #7DD3FC; }
+.cal.mini .day .flame { width: 11px; height: 14px; left: auto; right: 1px; top: 1px; transform: none; }
+.cal.mini .day.hot:not(.sel) { color: inherit; font-weight: 650; }
+.cal.mini .day.hot .num { font-size: inherit; letter-spacing: 0; transform: none; text-shadow: none; }
+.cal.mini .day.hot .dot { display: flex; }
+
+/* ---------- Конфетти в карточке дня рождения ---------- */
+.item.bday { position: relative; overflow: hidden; }
+.item.bday > :not(.confetti) { position: relative; z-index: 1; }
+.item.bday .confetti i { animation-duration: 5.5s; }
+
+/* ---------- Салют ---------- */
+.fx-salute { position: fixed; inset: 0; z-index: 95; pointer-events: none; overflow: hidden; }
+.fx-rocket { position: absolute; left: -2px; top: -6px; width: 4px; height: 12px; border-radius: 2px;
+  background: linear-gradient(180deg, #fff, var(--c) 40%, transparent); box-shadow: 0 0 8px var(--c); }
+.fx-flash { position: absolute; width: 90px; height: 90px; border-radius: 50%;
+  background: radial-gradient(circle, #fff 0, var(--c) 25%, transparent 65%); }
+.fx-spark-s { position: absolute; width: 5px; height: 5px; border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 30%, var(--c) 60%); box-shadow: 0 0 6px 1px var(--c); }
+[data-theme="light"] .fx-spark-s { box-shadow: 0 0 6px 1px var(--c), 0 0 0 1px rgba(0, 0, 0, .12); }
+
+/* кораблик в баннере отпуска: плывёт по дальней волне через весь баннер */
+.vac-banner .boat.sail { top: -3px; opacity: 1; width: 24px; height: 20px; animation: sail 26s linear infinite; animation-delay: calc(var(--clock) - 7s); }
+@keyframes sail { 0% { left: -30px; opacity: 0; } 4% { opacity: 1; } 96% { opacity: 1; } 100% { left: calc(100% + 8px); opacity: 0; } }
+.anim-off .vac-banner .boat.sail { animation: none; left: 70%; }
+.vac-banner > :not(.waves) { position: relative; z-index: 1; } /* текст поверх проплывающего кораблика */
+
+/* «Эта неделя»: цифры рядом с подписями */
+.mini-stats { flex: 0 1 240px; max-width: 240px; }
+
+/* время в редакторе — одна строка, выбранное подсвечено */
+#edPresets { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; }
+#edPresets button { padding-left: 0; padding-right: 0; text-align: center; }
+#edPresets button.on { background: var(--grad); color: #fff; box-shadow: var(--glow); }
+
+/* «Откладывать на»: длинные варианты в выпадашке */
+.seg.snz { position: relative; overflow: visible; }
+.snz-btn { display: inline-flex; align-items: center; gap: 4px; }
+.snz-btn svg.i { width: 14px; height: 14px; }
+.snz-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 130px; padding: 5px; border-radius: 12px;
+  background: var(--card-2); border: 1px solid var(--border-2); box-shadow: 0 14px 40px rgba(0, 0, 0, .35); display: flex; flex-direction: column; }
+.snz-pop[hidden] { display: none; }
+.snz-pop button { text-align: left; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text); }
+.snz-pop button:hover { background: var(--hover); }
+.snz-pop button.on { background: var(--accent-soft); color: var(--accent); }
+.modal[data-kind="birthday"] #edPresets button.on { background: var(--gold-grad); color: var(--gold-ink); box-shadow: 0 6px 16px rgba(245, 196, 81, .35); }
+
+/* ---------- Светлая тема: контрастнее и отпуск заметнее ---------- */
+[data-theme="light"] {
+  --bg: #ECEEF8; --card-3: #E7EAF7;
+  --border: rgba(30, 36, 90, .13); --border-2: rgba(30, 36, 90, .2);
+  --shadow: 0 1px 2px rgba(30, 36, 90, .06), 0 10px 28px rgba(30, 36, 90, .10);
+}
+[data-theme="light"] .cell { border-color: rgba(30, 36, 90, .09); }
+[data-theme="light"] .cell.out { border-color: transparent; }
+[data-theme="light"] .cell.bday { border-color: rgba(227, 154, 44, .6); }
+[data-theme="light"] .cell.sel { border-color: var(--accent); }
+[data-theme="light"] .sidebar { box-shadow: 1px 0 0 rgba(30, 36, 90, .10), 6px 0 24px rgba(30, 36, 90, .05); }
+[data-theme="light"] .item { border-color: rgba(30, 36, 90, .12); }
+[data-theme="light"] .item.bday { border-color: rgba(227, 154, 44, .55); }
+[data-theme="light"] .cal.mini .day.vac:not(.sel) { background: rgba(14, 165, 233, .19); box-shadow: inset 0 0 0 1px rgba(14, 165, 233, .35); }
+[data-theme="light"] .cal.mini .day.vac:not(.sel):not(.bday) { color: #0369A1; }
+[data-theme="light"] .cell.vac { background: linear-gradient(180deg, rgba(56, 189, 248, .22), rgba(37, 99, 235, .27)); border-color: rgba(14, 165, 233, .55); }
+[data-theme="light"] .cell.vac.sel { border-color: var(--accent); }
+[data-theme="light"] .cell.vac.sel { background: linear-gradient(180deg, rgba(94, 107, 255, .2), rgba(37, 99, 235, .28)); }
+
+/* ---------- Мини-календарь: ДР залит золотом, выбранный — фиолетовое кольцо ---------- */
+@property --ra { syntax: "<angle>"; inherits: false; initial-value: 360deg; }
+.cal.mini .day.bday, .cal.mini .day.bday.sel, .cal.mini.pouring .day.bday.sel {
+  background: var(--gold-grad) !important; color: var(--gold-ink) !important; font-weight: 750;
+  box-shadow: 0 4px 12px rgba(245, 196, 81, .3) !important; }
+.cal.mini .day.bday.out:not(.sel) { opacity: .55; }
+.cal.mini .day.bday.today:not(.sel) { box-shadow: inset 0 0 0 2px var(--accent), 0 4px 12px rgba(245, 196, 81, .3) !important; }
+.cal.mini .day.bday.sel::after, .ring-out {
+  content: ""; position: absolute; inset: -4px; border-radius: 16px; border: 2.5px solid #7B5CFF; pointer-events: none;
+  box-shadow: inset 0 0 8px rgba(123, 92, 255, .55);
+  -webkit-mask: conic-gradient(#000 var(--ra), transparent 0); mask: conic-gradient(#000 var(--ra), transparent 0); }
+.cal.mini .day.bday.sel.ring-in::after { animation: ringDraw .55s cubic-bezier(.4, 0, .2, 1) var(--rd, 0ms) both; }
+@keyframes ringDraw { from { --ra: 0deg; } to { --ra: 360deg; } }
+.cal.mini .day.bday.sel.ring-in { animation: ringFlash .5s ease-out calc(var(--rd, 0ms) + .5s) both; }
+@keyframes ringFlash { 0% { filter: none; } 40% { filter: drop-shadow(0 0 10px rgba(123, 92, 255, .9)); } 100% { filter: none; } }
+/* пока переливается лава — у дня отпуска остаётся его голубой фон */
+.cal.mini.pouring .day.sel.vac:not(.bday) { background: rgba(56, 189, 248, .16) !important; }
+[data-theme="light"] .cal.mini.pouring .day.sel.vac:not(.bday) { background: rgba(14, 165, 233, .19) !important; box-shadow: inset 0 0 0 1px rgba(14, 165, 233, .35) !important; }
+.cal.mini.pouring .day.sel.vac:not(.bday) { color: #7DD3FC !important; }
+[data-theme="light"] .cal.mini.pouring .day.sel.vac:not(.bday) { color: #0369A1 !important; }
+
+/* тихая подсказка в редакторе отпуска */
+.ed-hint { display: flex; gap: 6px; align-items: flex-start; margin-top: -4px; font-size: 12px; line-height: 1.4; color: var(--muted); }
+.ed-hint[hidden] { display: none; }
+.ed-hint svg.i { width: 14px; height: 14px; flex: none; margin-top: 1px; }
+
+/* ---------- Баннер отпуска: пляж ---------- */
+.vac-banner { padding-bottom: 44px; }
+.vac-banner > .beach { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.vac-banner .vb-ic { background: #EEF3F9; box-shadow: 0 2px 6px rgba(8, 30, 70, .22); }
+.b-sun { position: absolute; right: 14px; top: -4px; width: 46px; height: 46px; }
+.b-sun .ra, .b-sun .rb { transform-box: fill-box; transform-origin: 50% 100%; animation: ray 4s ease-in-out infinite; animation-delay: var(--clock); }
+.b-sun .rb { animation-delay: calc(var(--clock) - 2s); }
+@keyframes ray { 0%, 100% { transform: scaleY(.45); } 50% { transform: scaleY(1.15); } }
+/* чайки летят к солнцу, уменьшаются и тают, не долетая до него; потом долгая пауза */
+.b-gull { position: absolute; left: 50%; top: 24px; width: 24px; height: 12px; opacity: 0; animation: toSun 24s linear infinite; animation-delay: var(--clock); }
+.b-gull.g2 { top: 36px; width: 17px; height: 9px; animation-delay: calc(var(--clock) - 1.6s); }
+@keyframes toSun {
+  0% { left: 50%; transform: translateY(6px) scale(1.15); opacity: 0; }
+  2% { opacity: 1; }
+  26% { left: calc(100% - 120px); transform: translateY(-18px) scale(.25); opacity: .9; }
+  31%, 100% { left: calc(100% - 102px); transform: translateY(-22px) scale(.08); opacity: 0; }
+}
+.b-gull .wing { transform-origin: 12px 7px; animation: flap .5s ease-in-out infinite; }
+@keyframes flap { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(.35); } }
+.b-sea { position: absolute; left: 0; right: 0; bottom: 17px; height: 19px; background: linear-gradient(180deg, #0E7FC7, #0B5FA5); overflow: hidden; }
+.b-sea i { position: absolute; left: 0; right: 0; height: 6px; background-repeat: repeat-x; background-size: 40px 6px; animation: seaMove 4s linear infinite;
+  animation-delay: var(--clock);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 6'%3E%3Cpath d='M0 4 Q10 0 20 4 T40 4' stroke='%23ffffff' stroke-opacity='.8' stroke-width='1.4' fill='none'/%3E%3C/svg%3E"); }
+.b-sea i:first-child { top: 2px; opacity: .7; }
+.b-sea i:last-child { top: 9px; animation-direction: reverse; animation-duration: 3s; }
+/* шаг сдвига = ширине узора (40px), иначе в конце круга волна «прыгает» */
+@keyframes seaMove { from { background-position-x: 0; } to { background-position-x: 40px; } }
+.b-sand { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 27px; }
+/* краб — отдельно от песка: всегда одного размера, ходит боком на переднем плане */
+.b-crab { position: absolute; bottom: 3px; left: 62%; width: 20px; height: 13px; z-index: 2;
+  animation: crab 14s ease-in-out infinite; animation-delay: var(--clock); }
+@keyframes crab { 0%, 100% { left: 62%; } 50% { left: 70%; } }
+.b-crab svg { width: 100%; height: 100%; display: block; animation: scuttle .35s steps(2) infinite; }
+@keyframes scuttle { 50% { transform: translateY(-1px); } }
+
+/* ---------- Кораблик в плитках: крупнее и сидит в волнах ---------- */
+.cell .boat { top: -8px; width: 27px; height: 23px; }
+
+/* ---------- «Живые картинки» выключены: всё замирает на месте ---------- */
+.live-off .sea i, .live-off .boat svg, .live-off .confetti i, .live-off .beach *, .live-off .cake * { animation-play-state: paused !important; }
+
+/* ---------- Карточка ДР: торт выглядывает снизу ---------- */
+.item.bday { --icing: #FFF3E0; }
+[data-theme="light"] .item.bday { --icing: #6B3A1E; }
+.item.bday > .confetti, .item.bday > .cake { position: absolute; }
+.item.bday > .confetti { z-index: 0; }
+.item.bday .confetti i { width: 4px; height: 7px; }
+.item.bday > .cake { right: 66px; bottom: -12px; width: 210px; height: 100px; z-index: 2; pointer-events: none;
+  filter: drop-shadow(0 -2px 10px rgba(255, 127, 163, .22)); }
+.compact .item.bday > .cake { right: 40px; width: 116px; height: 56px; bottom: -7px; }
+.cake .ic { fill: var(--icing); }
+.cake .fl { animation: flick 1.1s ease-in-out infinite; }
+@keyframes flick { 0%, 100% { transform: scale(1, 1) rotate(-3deg); } 50% { transform: scale(.88, 1.1) rotate(3deg); } }
+.cake .cake-glow { fill: #FFB020; opacity: .1; animation: cakeGlow 1.1s ease-in-out infinite; animation-delay: var(--clock); }
+[data-theme="light"] .cake .cake-glow { opacity: .14; }
+@keyframes cakeGlow { 0%, 100% { opacity: .07; } 50% { opacity: .16; } }
+.cake .sp { animation: tw 4s ease-in-out infinite; }
+@keyframes tw { 0%, 85%, 100% { opacity: 1; } 92% { opacity: .35; } }
+.cake .sp.near { animation: glint 1.1s ease-in-out infinite; }
+@keyframes glint { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.8) drop-shadow(0 0 2px #FFD24D); } }
+.cake .smoke { opacity: 0; }
+/* свеча гаснет, пока на огоньке мышка; потом — искра и огонёк разгорается заново */
+.cake .hit { pointer-events: all; cursor: default; }
+.cake .spark { opacity: 0; }
+.cake .wick.out .fl { opacity: 0; transform: scale(.3, 0) translateY(-4px); transition: opacity .18s, transform .22s ease-out; animation: none; }
+.cake .wick.out .smoke { animation: cakeSmoke 1.7s ease-out .1s both; }
+.cake .wick.relight .fl { animation: ignite .7s ease-out both; }
+.cake .wick.relight .spark { animation: sparkPop .35s ease-out both; }
+@keyframes ignite { 0% { transform: scale(.05); opacity: 0; } 18% { transform: scale(.18, .25); opacity: 1; }
+  50% { transform: scale(.65, 1.25); } 78% { transform: scale(1.08, .95); } 100% { transform: scale(1); opacity: 1; } }
+@keyframes sparkPop { 0% { opacity: 0; transform: scale(.2); } 40% { opacity: 1; transform: scale(1.3); } 100% { opacity: 0; transform: scale(.4); } }
+.cake .spark { transform-box: fill-box; transform-origin: center; }
+@keyframes cakeSmoke { 0% { opacity: 0; transform: translateY(0) scaleY(.4); } 18% { opacity: .85; } 100% { opacity: 0; transform: translateY(-14px) scaleY(1.1); } }
+.live-off .cake .wick.relight .fl, .live-off .cake .wick.relight .spark { animation: none !important; }
+.bday-ic { width: 38px; height: 38px; border-radius: 12px; }
+.bday-ic svg.i { width: 22px; height: 22px; }
+.setting:has(.snz) { position: relative; z-index: 20; }
+.seg.snz { z-index: 20; }
+
+/* ---------- Острова: вода «отрезает» остров ровно по линии бегущей дальней волны ---------- */
+.isl-wrap { position: absolute; left: 0; right: 0; bottom: 0; height: 44px; pointer-events: none;
+  -webkit-mask-image: linear-gradient(#000, #000), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 0 H60 V13 Q45 8 30 13 Q15 18 0 13 Z'/%3E%3C/svg%3E");
+  mask-image: linear-gradient(#000, #000), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20' preserveAspectRatio='none'%3E%3Cpath d='M0 0 H60 V13 Q45 8 30 13 Q15 18 0 13 Z'/%3E%3C/svg%3E");
+  -webkit-mask-size: 100% 22px, 60px 22px; mask-size: 100% 22px, 60px 22px;
+  -webkit-mask-repeat: no-repeat, repeat-x; mask-repeat: no-repeat, repeat-x;
+  -webkit-mask-position: 0 0, 0 100%; mask-position: 0 0, 0 100%;
+  animation: islMask 4.2s linear infinite reverse; animation-delay: var(--clock); }
+@keyframes islMask {
+  from { -webkit-mask-position: 0 0, 0 100%; mask-position: 0 0, 0 100%; }
+  to { -webkit-mask-position: 0 0, 60px 100%; mask-position: 0 0, 60px 100%; } }
+.isl-x { position: absolute; }
+.live-off .isl-wrap { animation-play-state: paused !important; }
+
+/* ---------- Плитка ДР: гирлянда-флажки и подарки ---------- */
+.cell .bd-gifts { position: absolute; pointer-events: none; z-index: 0; }
+.cell .bd-gifts { right: 6px; bottom: -5px; width: 64px; height: 18px; } /* выглядывают из нижнего края, справа — не мешают «ещё N» */
+
+.cell.vac.bday .sea { display: none; } /* ДР в отпуске: фон отпуска, рамка ДР, без моря и кораблика */
+.cell.vac.bday { border-color: rgba(245, 196, 81, .7) !important; }
+.cell.vac.bday.sel { border-color: var(--accent) !important; }
+
+/* в широких плитках ДР подарков больше */
+.bigcal .cell { container-type: inline-size; }
+.cell .bd-more { right: 74px; width: 36px; display: none; }
+@container (min-width: 128px) { .cell .bd-more { display: block; } }
+.cell.vac .bd-more { display: none !important; }

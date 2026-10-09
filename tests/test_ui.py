@@ -154,3 +154,64 @@ def test_priority_fire(page):
     expect(page.locator(f".cal .day[data-date='{TODAY.isoformat()}'] .flame")).to_have_count(1)
     page.click("nav [data-page=calendar]")
     expect(page.locator(f".cell[data-date='{TODAY.isoformat()}'] .flame")).to_have_count(1)
+
+
+def test_create_birthday_today(page):
+    page.click("header [data-act=add]")
+    page.click("[data-act=ed-kind][data-v=birthday]")
+    expect(page.locator(".modal")).to_have_attribute("data-kind", "birthday")
+    expect(page.locator("#edCats")).to_be_hidden()                 # у дня рождения нет категорий
+    page.fill("#edTitle", "Ксюша")
+    page.type("#edBYear", "2000")
+    expect(page.locator("#edAge")).to_contain_text(f"исполнится {TODAY.year - 2000}")
+    page.click("[data-act=ed-remind-all]")
+    expect(page.locator("#edRemind .ck.on")).to_have_count(3)
+    page.click("[data-act=ed-save]")
+    bday = page.locator(".item.bday", has_text="Ксюша").first
+    expect(bday).to_be_visible()
+    expect(page.locator("#heroSub")).to_contain_text("день рождения: Ксюша")
+    expect(page.locator("#sideValue")).to_have_text("1 из 2 выполнено")  # ДР не влияет на прогресс
+    bday.locator("[data-act=menu]").click()
+    expect(page.locator("[data-act=m-toggle]")).to_have_count(0)    # отметить «выполнено» нельзя
+
+
+def test_create_vacation(page):
+    page.click("header [data-act=add]")
+    page.click("[data-act=ed-kind][data-v=vacation]")
+    page.click("[data-act=ed-save]")                               # пустое название → «Отпуск»
+    expect(page.locator(".vac-banner", has_text="Отпуск").first).to_be_visible()
+    expect(page.locator(f".cal .day.vac[data-date='{TODAY.isoformat()}']")).to_have_count(1)
+    page.click("nav [data-page=calendar]")
+    expect(page.locator(f".cell.vac[data-date='{TODAY.isoformat()}']")).to_have_count(1)
+
+
+def test_month_picker(page):
+    page.click("[data-act=mp-open]")
+    expect(page.locator(".mpop .mt")).to_have_count(12)
+    page.click("[data-act=mp-year][data-v='1']")
+    expect(page.locator(".mp-year b")).to_have_text(str(TODAY.year + 1))
+    page.click("[data-act=mp-month][data-v='0']")
+    expect(page.locator(".mbtn")).to_have_text(f"Январь {TODAY.year + 1}")
+    expect(page.locator(".mpop")).to_have_count(0)
+
+
+def test_pour_animation_and_off_switch(page):
+    other = (TODAY + timedelta(days=1 if TODAY.day < 25 else -1)).isoformat()
+    page.click(f".cal .day[data-date='{other}']")
+    expect(page.locator(".cal .fx-fill")).to_have_count(1)          # лава наливается в новый день
+    page.click("nav [data-page=settings]")
+    page.click("[data-act=set-anim][data-v=off]")
+    expect(page.locator("body")).to_have_class(re.compile(r"\banim-off\b"))
+    page.click("nav [data-page=home]")
+    expect(page.locator("#nav .fx-fill")).to_have_count(0)          # без анимации — ничего не льётся
+    page.click(f".cal .day[data-date='{TODAY.isoformat()}']")
+    expect(page.locator(".cal .fx-fill")).to_have_count(0)
+
+
+def test_gender_phrases(page):
+    page.click("nav [data-page=settings]")
+    page.click("[data-act=set-gender][data-v=f]")
+    page.click("nav [data-page=home]")
+    item(page, "Тренировка").locator("[data-act=toggle]").click()
+    expect(page.locator(".summary small")).to_have_text("Всё сделано — красотка")
+    expect(page.locator("#heroSub")).to_contain_text("Ты всё сделала")
