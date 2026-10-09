@@ -206,7 +206,7 @@
       <div class="field" data-kinds="vacation">
         <button class="checkrow" data-act="ed-mute" id="edMute"><span class="cb"><svg class="i"><use href="#check"/></svg></span>
           <span><b>Не напоминать о рабочем в отпуске</b><small>Уведомления категории «Работа» в эти дни не всплывают</small></span></button></div>
-      <div class="field" data-kinds="reminder"><label>Категория</label><div class="filters" id="edCats" style="margin:0"></div></div>
+      <div class="field" data-kinds="reminder"><label>Категория</label><div class="ed-cats" id="edCats"></div><div class="ed-toggles" id="edToggles"></div></div>
       <div class="field" id="edRepeatField" data-kinds="reminder"><label>Повтор</label><div class="seg full grid3" id="edRepeat"></div></div>
       <div class="form-error" id="edError"></div>
       <div class="modal-actions">
@@ -221,6 +221,7 @@
 <div class="toast" id="toast"><svg class="i"><use href="#okc"/></svg><span></span></div>
 
 <script src="fx.js"></script>
+<script src="scenes.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

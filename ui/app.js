@@ -240,16 +240,20 @@ function vacBanner(v) {
   </button>`;
 }
 
+const SPARK = `<svg class="i" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
+
 function itemRow(it, { withDate = false } = {}) {
   if (it.kind === "birthday") return bdayRow(it, withDate);
   const missed = it.past && !it.done;
-  const cls = ["item", it.done ? "done" : "", missed ? "missed" : "", it.important ? "hot" : ""].filter(Boolean).join(" ");
+  // анимированный баннер — только в панели дня (без даты в строке) и только у записи с категорией
+  const scene = !withDate && it.animated && typeof SCENES !== "undefined" ? SCENES[it.category] : "";
+  const cls = ["item", scene ? `scb scb-${it.category}` : "", it.done ? "done" : "", missed ? "missed" : "", it.important ? "hot" : ""].filter(Boolean).join(" ");
   const d = parse(it.date);
   const left = withDate ? dateBlock(d) : `<div class="time">${it.time}</div><div class="vsep"></div>`;
   let meta = "";
   if (withDate) meta = `${relDay(d)} · ${it.time}${missed ? " · пропущено" : ""}`;
   else if (it.note) meta = it.note.split("\n")[0];
-  return `<div class="${cls}" data-id="${it.id}" data-date="${it.date}">
+  return `<div class="${cls}" data-id="${it.id}" data-date="${it.date}">${scene || ""}
     <button class="check" data-act="toggle" title="${it.done ? "Снять отметку" : "Выполнено"}">${icon("check")}</button>
     ${left}
     <div class="body" data-act="edit">
@@ -738,7 +742,7 @@ async function openEditor(id) {
   const r = await api("get", id);
   if (!r) return toast("Запись не найдена");
   showEditor({ id: r.id, kind: r.kind || "reminder", title: r.title, note: r.note || "", date: r.date, time: r.time,
-    repeat: r.repeat, category: r.category || "", important: !!r.important,
+    repeat: r.repeat, category: r.category || "", important: !!r.important, animated: !!r.animated,
     birth_year: r.birth_year || "", remind: r.remind || [], date_end: r.date_end || r.date, mute_work: !!r.mute_work });
   if (r.kind === "birthday") celebrate($(".modal-head .dateblock"));
 }
@@ -752,7 +756,7 @@ function openNew(dateStr, kind = "reminder") {
     if (iso(t) !== dateStr) dateStr = iso(t);
     time = `${pad(t.getHours())}:${pad(t.getMinutes())}`;
   }
-  showEditor({ id: null, kind, title: "", note: "", date: dateStr, time, repeat: "none", category: "", important: false,
+  showEditor({ id: null, kind, title: "", note: "", date: dateStr, time, repeat: "none", category: "", important: false, animated: false,
     birth_year: "", remind: [0, 1], date_end: iso(addDays(parse(dateStr), 6)), mute_work: true, asked });
 }
 
@@ -800,8 +804,12 @@ function markPreset() {
 function renderEdChoices() {
   const ed = S.ed;
   $("#edCats").innerHTML = Object.entries(S.categories).map(([k, t]) =>
-    `<button class="fchip${ed.category === k ? " on" : ""}" style="--c:${CAT_COLORS[k]}" data-act="ed-cat" data-v="${k}">${icon("cat-" + k)}${t}</button>`).join("")
-    + `<button class="fchip${ed.important ? " on" : ""}" style="--c:${IMPORTANT}" data-act="ed-important">${icon("flame")}Приоритет</button>`;
+    `<button class="fchip${ed.category === k ? " on" : ""}" style="--c:${CAT_COLORS[k]}" data-act="ed-cat" data-v="${k}">${icon("cat-" + k)}${t}</button>`).join("");
+  const tg = (act, on, ic, color, title, sub, disabled) => `<div class="ed-tg${disabled ? " off" : ""}" style="--c:${color}">
+    <span class="tg-ic">${ic}</span><span class="tg-txt"><b>${title}</b><small>${sub}</small></span>
+    <button class="switch${on ? " on" : ""}" data-act="${act}" role="switch" aria-checked="${on}" aria-label="${title}"${disabled ? " disabled" : ""}></button></div>`;
+  $("#edToggles").innerHTML = tg("ed-important", ed.important, icon("flame"), IMPORTANT, "Приоритет", "Огненная рамка")
+    + tg("ed-anim", ed.animated && !!ed.category, SPARK, "#F5C451", "Анимация", ed.category ? "Живая сцена" : "Выбери категорию", !ed.category);
   $("#edRepeat").innerHTML = Object.entries(S.repeats).map(([k, t]) =>
     `<button class="${ed.repeat === k ? "on" : ""}" data-act="ed-repeat" data-v="${k}">${t}</button>`).join("");
   const bd = parse(ed.date);
@@ -899,7 +907,7 @@ async function saveEditor() {
     return;
   }
   const payload = { id: ed.id, kind: ed.kind, title: $("#edTitle").value, note: $("#edNote").value, date: ed.date,
-    time, repeat: ed.repeat, category: ed.category, important: ed.important,
+    time, repeat: ed.repeat, category: ed.category, important: ed.important, animated: ed.animated && !!ed.category,
     birth_year: $("#edBYear").value.trim(), remind: ed.remind, date_end: ed.date_end, mute_work: ed.mute_work };
   const res = await api("save", payload);
   if (res.error) {
@@ -1049,7 +1057,10 @@ document.addEventListener("click", async (e) => {
     // редактор
     case "close-editor": return closeEditor();
     case "ed-save": return saveEditor();
-    case "ed-cat": S.ed.category = S.ed.category === el.dataset.v ? "" : el.dataset.v; return renderEdChoices();
+    case "ed-cat": S.ed.category = S.ed.category === el.dataset.v ? "" : el.dataset.v;
+      if (!S.ed.category) S.ed.animated = false;
+      return renderEdChoices();
+    case "ed-anim": if (S.ed.category) S.ed.animated = !S.ed.animated; return renderEdChoices();
     case "ed-important": S.ed.important = !S.ed.important; return renderEdChoices();
     case "ed-repeat": S.ed.repeat = el.dataset.v; renderEdChoices(); return updateEdHead();
     case "ed-kind": {

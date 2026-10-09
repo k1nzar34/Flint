@@ -215,3 +215,23 @@ def test_gender_phrases(page):
     item(page, "Тренировка").locator("[data-act=toggle]").click()
     expect(page.locator(".summary small")).to_have_text("Всё сделано — красотка")
     expect(page.locator("#heroSub")).to_contain_text("Ты всё сделала")
+
+
+def test_animated_banner(page):
+    page.click("header [data-act=add]")
+    page.fill("#edTitle", "Читать книгу")
+    expect(page.locator("[data-act=ed-anim]")).to_be_disabled()      # без категории сцены нет
+    page.click("[data-act=ed-cat][data-v=growth]")
+    page.click("[data-act=ed-anim]")
+    expect(page.locator("[data-act=ed-anim]")).to_have_class(re.compile(r"\bon\b"))
+    page.click("[data-act=ed-cat][data-v=growth]")                  # сняли категорию — переключатель гаснет
+    expect(page.locator("[data-act=ed-anim]")).to_be_disabled()
+    page.click("[data-act=ed-cat][data-v=growth]")
+    page.click("[data-act=ed-anim]")
+    page.fill("#edTime", "")
+    page.type("#edTime", "2358")
+    page.click("[data-act=ed-save]")
+    banner = page.locator(".item.scb-growth", has_text="Читать книгу")
+    expect(banner).to_be_visible()
+    expect(banner.locator(".scene svg")).to_have_count(1)
+    expect(page.locator(".item.scb", has_text="Тренировка")).to_have_count(0)  # без флага — обычная строка

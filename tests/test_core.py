@@ -347,3 +347,13 @@ def test_vacation_seed_changes_on_each_save(store):
     r = store.upsert({"id": r["id"], "kind": "vacation", "title": "Море", "date": "2026-12-01", "date_end": "2026-12-20"}, now)
     assert r["seed"] and r["seed"] != s1  # пересохранил — острова перемешаются
     assert store.vacations_between(date(2026, 12, 1), date(2026, 12, 31))[0]["seed"] == r["seed"]
+
+
+# ---------- Анимированный баннер ----------
+def test_animated_needs_category(store):
+    assert add(store, title="Без категории", animated=True)["animated"] is False
+    r = add(store, title="Код", category="growth", animated=True)
+    assert r["animated"] is True
+    assert store.item(r, date(2026, 10, 8), NOW)["animated"] is True
+    r = store.upsert({**r, "category": "", "date": "2026-10-08", "time": "18:00"}, NOW)  # сняли категорию — сцена уходит
+    assert r["animated"] is False

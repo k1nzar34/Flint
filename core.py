@@ -246,6 +246,7 @@ class Store:
         if repeat == "none" and start <= now and not unchanged_time:
             raise ValidationError("Это время уже прошло")
         return {"title": title, "category": category, "important": bool(payload.get("important")),
+                "animated": bool(category) and bool(payload.get("animated")),  # сцена — только у записи с категорией
                 "repeat": repeat, "start": fmt(start)}
 
     def _birthday_fields(self, payload, existing, now):
@@ -388,6 +389,7 @@ class Store:
         it = {
             "id": r["id"], "kind": kind_of(r), "title": r["title"], "note": r.get("note", ""),
             "category": r.get("category", ""), "important": r.get("important", False),
+            "animated": r.get("animated", False),
             "repeat": r["repeat"], "date": d.strftime(DFMT), "time": occ.strftime("%H:%M"),
             "done": is_done(r, d), "past": occ < now,
         }

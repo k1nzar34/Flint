@@ -1049,3 +1049,158 @@ svg.hat { position: absolute; width: 13px; height: 16px; pointer-events: none; z
 .cell .bd-more { right: 74px; width: 36px; display: none; }
 @container (min-width: 128px) { .cell .bd-more { display: block; } }
 .cell.vac .bd-more { display: none !important; }
+
+
+/* =====================================================================
+   Баннеры категорий (панель дня): включаются переключателем «Анимация»
+   ===================================================================== */
+:root {
+  --b-work: linear-gradient(100deg,#15225A 0%,#1E3A8E 48%,#3A6CE6 100%);
+  --b-health: linear-gradient(100deg,#0A3B37 0%,#127166 50%,#1FAE9A 100%);
+  --b-personal: linear-gradient(100deg,#3A0A1D 0%,#781535 50%,#B92650 100%);
+  --b-home: linear-gradient(100deg,#0C3524 0%,#155F3B 50%,#279B5F 100%);
+  --b-growth: linear-gradient(100deg,#251457 0%,#472A93 50%,#7A57DA 100%);
+}
+[data-theme="light"] {
+  --b-work: linear-gradient(100deg,#1D3A9C 0%,#2D59D6 50%,#5591FF 100%);
+  --b-health: linear-gradient(100deg,#0D5F57 0%,#168C7E 50%,#2BC2AC 100%);
+  --b-personal: linear-gradient(100deg,#6A1230 0%,#A11D45 50%,#E0446F 100%);
+  --b-home: linear-gradient(100deg,#135237 0%,#1D7C4D 50%,#33B871 100%);
+  --b-growth: linear-gradient(100deg,#3B2391 0%,#5B39C2 50%,#9273F0 100%);
+}
+.item.scb { --sw: min(42%, 240px); position: relative; overflow: hidden; isolation: isolate; min-height: 86px;
+  color: #fff; border-color: transparent; background: var(--bg-grad); box-shadow: 0 10px 26px -14px var(--sh); }
+.item.scb:hover { border-color: rgba(255,255,255,.25); }
+.item.scb-work { --bg-grad: var(--b-work); --sh: rgba(60,110,255,.9); }
+.item.scb-health { --bg-grad: var(--b-health); --sh: rgba(30,200,180,.8); }
+.item.scb-personal { --bg-grad: var(--b-personal); --sh: rgba(255,60,110,.8); }
+.item.scb-home { --bg-grad: var(--b-home); --sh: rgba(50,200,120,.8); }
+.item.scb-growth { --bg-grad: var(--b-growth); --sh: rgba(140,100,255,.9); }
+.item.scb > :not(.scene):not(.pulse) { position: relative; z-index: 2; }
+.item.scb .check { border-color: rgba(255,255,255,.7); }
+.item.scb .vsep { background: rgba(255,255,255,.28); }
+.item.scb .meta { color: rgba(255,255,255,.82); }
+.item.scb .title { text-shadow: 0 1px 8px rgba(0,0,0,.35); }
+.item.scb .tag { --c: #fff; color: #fff; background: rgba(255,255,255,.18); }
+.item.scb .icon-btn { color: rgba(255,255,255,.85); }
+.item.scb .time { color: #fff; }
+.item.scb:not(.cb-health) .body { margin-right: calc(var(--sw) - 10px); }
+.item.scb .scene { position: absolute; right: 48px; top: 0; height: 100%; width: var(--sw); z-index: 1; pointer-events: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 90%, transparent); mask-image: linear-gradient(90deg, transparent, #000 9%, #000 90%, transparent); }
+.item.scb .scene svg, .item.scb .pulse svg { width: 100%; height: 100%; display: block; }
+.item.scb .scene svg { overflow: visible; }
+.item.scb .pulse { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+/* выполнено: сцена замирает и тускнеет */
+.item.scb.done { filter: saturate(.7); }
+.item.scb.done .scene, .item.scb.done .pulse { filter: saturate(.35) brightness(.8); opacity: .6; }
+.item.scb.done *, .live-off .item.scb * { animation-play-state: paused !important; }
+.item.scb.done .check { background: rgba(255,255,255,.95); border-color: transparent; color: #4F46E5; }
+.item.scb.done .title { color: #fff; opacity: .8; }
+/* приоритет: огненная рамка поверх баннера */
+.item.scb.hot:not(.done) { border: 2px solid transparent;
+  background: var(--bg-grad) padding-box, linear-gradient(115deg,#FFD15C,#FF7A1A 30%,#FF3D5A 55%,#FF7A1A 80%,#FFD15C) border-box;
+  background-size: 100% 100%, 300% 300%; }
+.item.scb .title .fire { color: #FFB15C; }
+/* без анимаций — статичный кадр с нарисованным графиком */
+.anim-off .item.scb .chart { stroke-dashoffset: 0; }
+.anim-off .item.scb .chart-dot { opacity: 1; }
+
+/* ---------- сцены ---------- */
+/* Работа */
+.chart { stroke-dasharray: 1; stroke-dashoffset: 1; animation: chartDraw 9s ease-in-out infinite; }
+.chart-area { animation: chartArea 9s ease-in-out infinite; }
+.chart-dot { animation: chartDot 9s ease-in-out infinite; transform-origin: 164px 22px; }
+@keyframes chartDraw { 0% { stroke-dashoffset: 1; opacity: 1; } 55% { stroke-dashoffset: 0; } 85% { stroke-dashoffset: 0; opacity: 1; } 95%,100% { stroke-dashoffset: 0; opacity: 0; } }
+@keyframes chartArea { 0%,40% { opacity: 0; } 60%,85% { opacity: .35; } 95%,100% { opacity: 0; } }
+@keyframes chartDot { 0%,52% { opacity: 0; transform: scale(.4); } 58% { opacity: 1; transform: scale(1.4); } 64%,85% { opacity: 1; transform: scale(1); } 95%,100% { opacity: 0; } }
+.steam { animation: steam 3.2s ease-in-out infinite; opacity: 0; }
+.steam.s2 { animation-delay: 1.05s; } .steam.s3 { animation-delay: 2.1s; }
+@keyframes steam { 0% { opacity: 0; transform: translateY(4px); } 30% { opacity: .75; } 100% { opacity: 0; transform: translateY(-9px); } }
+
+/* Здоровье */
+.pulse-head { stroke-dasharray: .1 .9; stroke-dashoffset: .1; animation: beat 4.4s linear infinite; filter: drop-shadow(0 0 4px rgba(255,255,255,.9)); }
+@keyframes beat { from { stroke-dashoffset: .1; } to { stroke-dashoffset: -.9; } }
+
+/* Личное */
+.curtain-l { transform-origin: 70px 2px; animation: swayL 6s ease-in-out infinite; }
+.curtain-r { transform-origin: 240px 2px; animation: swayR 6.6s ease-in-out infinite; }
+@keyframes swayL { 0%,100% { transform: skewX(0deg); } 50% { transform: skewX(-2.2deg); } }
+@keyframes swayR { 0%,100% { transform: skewX(0deg); } 50% { transform: skewX(2deg); } }
+.glint { animation: glint 4s ease-in-out infinite; opacity: 0; }
+.glint.g2 { animation-delay: 2s; }
+@keyframes glint { 0%,60%,100% { opacity: 0; } 72% { opacity: .95; } 84% { opacity: 0; } }
+.bokeh { animation: tw 5s ease-in-out infinite; }
+.bokeh:nth-child(2) { animation-delay: 1.2s; } .bokeh:nth-child(3) { animation-delay: 2.5s; } .bokeh:nth-child(4) { animation-delay: 3.6s; }
+@keyframes tw { 0%,100% { opacity: .15; } 50% { opacity: .55; } }
+
+/* Быт */
+.rock { transform-origin: 130px 76px; animation: rock 3.4s ease-in-out infinite; }
+@keyframes rock { 0%,100% { transform: rotate(-3.2deg); } 50% { transform: rotate(3.2deg); } }
+.breath { transform-origin: 141px 41px; animation: breath 3.8s ease-in-out infinite; }
+@keyframes breath { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(1.08); } }
+.ear { transform-origin: 133px 29.5px; animation: ear 7s ease-in-out infinite; }
+@keyframes ear { 0%,86%,100% { transform: rotate(0); } 88% { transform: rotate(-22deg); } 90% { transform: rotate(4deg); } 92% { transform: rotate(-14deg); } 94% { transform: rotate(0); } }
+.lamp-glow { animation: lamp 5s ease-in-out infinite; }
+.plant { transform-origin: 80px 61px; animation: plant 5.4s ease-in-out infinite; }
+@keyframes plant { 0%,100% { transform: rotate(-2deg); } 50% { transform: rotate(2.5deg); } }
+@keyframes lamp { 0%,100% { opacity: .55; } 50% { opacity: .8; } }
+
+/* Развитие */
+/* Развитие: цикл 18 с — листаем 3 страницы, пишем с паузами, стираем, закладка */
+.leaf, .lshade, .lback, .bm, .wl, .pen, .pen-flip { animation-duration: 18s; animation-iteration-count: infinite; animation-timing-function: ease-in-out; }
+.leaf { transform-origin: 95px 42px; }
+.la { animation-name: leafA; } .lb { animation-name: leafB; } .lc { animation-name: leafC; }
+@keyframes leafA { 0%,10% { transform: scaleX(1); opacity: 1; } 13% { transform: scaleX(.02); } 16% { transform: scaleX(-1); opacity: 1; } 16.5%,93% { transform: scaleX(-1); opacity: 0; } 93.5% { transform: scaleX(1); opacity: 0; } 98%,100% { transform: scaleX(1); opacity: 1; } }
+@keyframes leafB { 0%,34% { transform: scaleX(1); opacity: 1; } 37% { transform: scaleX(.02); } 40% { transform: scaleX(-1); opacity: 1; } 40.5%,98% { transform: scaleX(-1); opacity: 0; } 98.5%,100% { transform: scaleX(1); opacity: 1; } }
+@keyframes leafC { 0%,58% { transform: scaleX(1); opacity: 1; } 61% { transform: scaleX(.02); } 64% { transform: scaleX(-1); opacity: 1; } 64.5%,98% { transform: scaleX(-1); opacity: 0; } 98.5%,100% { transform: scaleX(1); opacity: 1; } }
+.lback { opacity: 0; animation-timing-function: step-end; }
+.lak { animation-name: bkA; } .lbk { animation-name: bkB; } .lck { animation-name: bkC; }
+@keyframes bkA { 0% { opacity: 0; } 13% { opacity: 1; } 93.5% { opacity: 0; } }
+@keyframes bkB { 0% { opacity: 0; } 37% { opacity: 1; } 98.5% { opacity: 0; } }
+@keyframes bkC { 0% { opacity: 0; } 61% { opacity: 1; } 98.5% { opacity: 0; } }
+.lshade { opacity: 0; }
+.las { animation-name: shA; } .lbs { animation-name: shB; } .lcs { animation-name: shC; }
+@keyframes shA { 0%,10% { opacity: 0; } 13% { opacity: .4; } 16%,100% { opacity: 0; } }
+@keyframes shB { 0%,34% { opacity: 0; } 37% { opacity: .4; } 40%,100% { opacity: 0; } }
+@keyframes shC { 0%,58% { opacity: 0; } 61% { opacity: .4; } 64%,100% { opacity: 0; } }
+.bm { animation-name: bm; opacity: 0; }
+@keyframes bm { 0%,85% { opacity: 0; transform: translateY(-14px); } 90% { opacity: 1; transform: translateY(0); } 92%,93% { opacity: 1; transform: translateY(0); } 96%,100% { opacity: 0; transform: translateY(0); } }
+.wl { stroke-dasharray: 1; stroke-dashoffset: 1; stroke-linecap: butt; animation-timing-function: linear; }
+.wl.a { animation-name: lineA; } .wl.b { animation-name: lineB; }
+@keyframes lineA { 0%,20% { stroke-dashoffset: 1; } 24%,27% { stroke-dashoffset: .5; } 31%,76% { stroke-dashoffset: 0; } 81%,100% { stroke-dashoffset: 1; } }
+@keyframes lineB { 0%,46% { stroke-dashoffset: 1; } 50%,53% { stroke-dashoffset: .5; } 56%,69% { stroke-dashoffset: 0; } 74%,100% { stroke-dashoffset: 1; } }
+.pen { animation-name: pen; animation-timing-function: linear; }
+@keyframes pen {
+  0%,18% { transform: translate(212px,70px); }
+  20% { transform: translate(170px,48px); }
+  24%,27% { transform: translate(188px,48px); }
+  31% { transform: translate(206px,48px); }
+  34%,44% { transform: translate(212px,70px); }
+  46% { transform: translate(170px,55px); }
+  50%,53% { transform: translate(184px,55px); }
+  56% { transform: translate(198px,55px); }
+  59%,65% { transform: translate(212px,70px); }
+  67%,69% { transform: translate(198px,55px); }
+  74% { transform: translate(170px,55px); }
+  76% { transform: translate(206px,48px); }
+  81%,83% { transform: translate(170px,48px); }
+  86%,100% { transform: translate(212px,70px); }
+}
+.pen-flip { transform-origin: 12px -20px; animation-name: penFlip; }
+@keyframes penFlip { 0%,67% { transform: rotate(0); } 69%,81% { transform: rotate(180deg); } 83%,100% { transform: rotate(0); } }
+.pen-jit { animation: jit .22s ease-in-out infinite alternate; }
+@keyframes jit { from { transform: translateY(0); } to { transform: translateY(-.8px); } }
+
+
+/* окно записи: категории в один ряд, приоритет и анимация — переключателями */
+.ed-cats { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 8px; }
+.ed-cats .fchip { justify-content: center; gap: 5px; padding: 8px 4px; font-size: 12.5px; white-space: nowrap; min-width: 0; margin: 0; }
+.ed-cats .fchip svg.i { flex-shrink: 0; }
+.ed-toggles { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; margin-top: 10px; }
+.ed-tg { display: flex; align-items: center; gap: 10px; padding: 9px 10px 9px 11px; border-radius: 14px; background: var(--card-3); border: 1px solid var(--border-2); min-width: 0; }
+.ed-tg .tg-ic { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; flex-shrink: 0; color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); }
+.ed-tg .tg-ic svg.i { width: 16px; height: 16px; }
+.ed-tg .tg-txt { flex: 1; min-width: 0; }
+.ed-tg .tg-txt b { display: block; font-size: 13px; font-weight: 620; }
+.ed-tg .tg-txt small { display: block; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ed-tg.off .tg-ic { opacity: .5; }
