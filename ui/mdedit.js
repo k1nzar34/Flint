@@ -8,7 +8,8 @@
  */
 const MD = (() => {
   const escH = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const ITEM = /^(\s*)([-*+]|\d+[.)])\s+(?:\[( |x|X)\]\s+)?(.*)$/;
+  // «- [ ] задача»; «- \[ \] …» (так текст сохранялся, если квадратные скобки набрали внутри пункта) — тоже задача
+  const ITEM = /^(\s*)([-*+]|\d+[.)])\s+(?:\\?\[( |x|X)\\?\]\s+)?(.*)$/;
   const isBlockStart = (l) => /^(#{1,6}\s|>|\s*([-*+]|\d+[.)])\s)/.test(l);
 
   function safeUrl(u) {
@@ -84,7 +85,7 @@ const MD = (() => {
 
   /* ---------- обратно: DOM → Markdown ---------- */
   const INLINE = new Set(["B", "STRONG", "I", "EM", "A", "CODE", "SPAN", "FONT", "U", "S", "STRIKE", "BR", "SUB", "SUP", "MARK"]);
-  const escT = (s) => s.replace(/ /g, " ").replace(/[\\`*_\[\]]/g, "\\$&");
+  const escT = (s) => s.replace(/​/g, "").replace(/ /g, " ").replace(/[\\`*_\[\]]/g, "\\$&");
 
   function wrap(mark, inner) {
     // маркеры прижимаем к тексту: «** жирный **» Markdown не поймёт
@@ -124,12 +125,11 @@ const MD = (() => {
       const mark = ordered ? `${n}. ` : "- ";
       const task = c.dataset.task !== undefined ? `[${c.dataset.task === "1" ? "x" : " "}] ` : "";
       const text = inl(c).replace(/\n+$/, "").trim().split("\n").join("\n" + pad + "  ");
-      out.push(pad + mark + task + (task ? text : guardItem(text)));
+      out.push(pad + mark + task + text);
       for (const sub of c.children) if (sub.tagName === "UL" || sub.tagName === "OL") out.push(listMd(sub, depth + 1));
     }
     return out.join("\n");
   }
-  const guardItem = (t) => (/^\[( |x|X)\]\s/.test(t) ? "\\" + t : t);
 
   function blocks(root) {
     const out = [];

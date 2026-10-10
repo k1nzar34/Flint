@@ -280,10 +280,9 @@ const NOTES = (() => {
   }
 
   function burnHtml() {
-    return `<div class="burn" id="nburn"><div class="fill"></div><div class="lbl">Сдвинь, чтобы удалить</div>
-      <span class="tip"><svg viewBox="0 0 32 40"><use href="#fire-bg"/></svg></span>
-      <button class="knob" id="nknob" aria-label="Удалить заметку: сдвинь вправо или удерживай Delete" title="Сдвинь вправо или удерживай Delete">
-        <span class="tr">${icon("trash")}</span><svg class="fl" viewBox="0 0 32 40"><use href="#fire-bg"/></svg></button></div>`;
+    return `<div class="burn" id="nburn"><div class="fill"></div><div class="lava"></div><div class="lbl">Сдвинь, чтобы удалить</div>
+      <button class="knob" id="nknob" aria-label="Удалить заметку: сдвинь вправо или удерживай Delete" title="Сдвинь вправо или удерживай Delete">${icon("trash")}</button>
+      <canvas class="flame" id="nflame" width="40" height="44" aria-hidden="true"></canvas></div>`;
   }
 
   function renderAll(focusTitle = false) { renderList(); renderEditor(focusTitle); renderProps(); }
@@ -549,6 +548,19 @@ const NOTES = (() => {
   function autoFormat(e) {
     const s = getSelection();
     if (!s.isCollapsed || !s.rangeCount) return false;
+    const li = caretLi();
+    if (li && li.dataset.task === undefined && li.parentElement.tagName === "UL") {
+      const r = document.createRange();
+      r.selectNodeContents(li); r.setEnd(s.anchorNode, s.anchorOffset);
+      const m = r.toString().match(/^\[( ?|[xх])\]$/i);
+      if (!m) return false;
+      e.preventDefault();
+      s.removeAllRanges(); s.addRange(r);
+      document.execCommand("delete");
+      li.dataset.task = m[1].trim() ? "1" : "0";
+      afterEdit();
+      return true;
+    }
     let blk = block(s.anchorNode);
     if (blk && blk.nodeType === 3) { document.execCommand("formatBlock", false, "p"); blk = block(getSelection().anchorNode); }
     if (!blk || (blk.tagName !== "P" && blk.tagName !== "DIV")) return false;
@@ -647,7 +659,7 @@ const NOTES = (() => {
     hideSelPop();
     const n = cur(), w = parseWhen(text);
     openNewFrom({ title: w.title || n.title || "Напоминание", date: w.date ? iso(w.date) : null, time: w.time, category: n.color,
-      noteId: n.id, note: n.title ? `Из заметки «${n.title}»` : "",
+      noteId: n.id,
       hint: `Из заметки «${n.title || "Без названия"}»${w.why.length ? ` · понял: ${w.why.map((x) => `«${x}»`).join(", ")}` : ""}` });
   }
 
@@ -766,16 +778,23 @@ const NOTES = (() => {
   }
 
   /* ---------- «Сдвинь, чтобы удалить» ---------- */
+  let flame = null;
   function bindBurn() {
+    flame?.stop(); flame = null;
     const burn = $("#nburn"), knob = $("#nknob");
     if (!burn) return;
+    if (S.anim === "lava") flame = FIRE.flame($("#nflame"));
     let p = 0, startX = 0, startP = 0, dragging = false, hold = null, done = false;
     const travel = () => burn.clientWidth - 42;
     burn.style.setProperty("--travel", travel() + "px");
     const setP = (v) => {
       p = Math.max(0, Math.min(1, v));
       burn.style.setProperty("--p", p.toFixed(4));
-      burn.classList.toggle("hot", p > .82 && S.anim !== "off");
+      // лава наливается плавно, без переключений; узор не растягивается — нет рывков при медленном движении
+      const h = Math.max(0, Math.min(1, (p - .45) / .5));
+      burn.style.setProperty("--hot", S.anim === "off" ? 0 : (h * h * (3 - 2 * h)).toFixed(3));
+      burn.classList.toggle("hot", p > .7);
+      flame?.set(p);
     };
     const springBack = () => {
       if (done) return;
@@ -788,6 +807,7 @@ const NOTES = (() => {
       done = true;
       setP(1);
       burn.classList.add("done", "hot");
+      flame?.flare();
       burnNote(N.cur);
     };
     knob.addEventListener("pointerdown", (e) => {
@@ -825,26 +845,25 @@ const NOTES = (() => {
     knob.addEventListener("blur", cancelHold);
   }
 
+  // заметка сгорает: карточка в списке — с искрами и пеплом, текст в редакторе — тем же краем, но тише
   function burnNote(id) {
-    const card = document.querySelector(`.ncard[data-nid="${id}"]`), ed = $("#ned");
+    const card = document.querySelector(`.ncard[data-nid="${id}"]`), body = document.querySelector("#ned .ned-burnable");
     if (S.anim === "off") return remove(id);
-    ed?.classList.add("burning");
-    if (card) {
-      card.classList.add("burning");
-      if (S.anim === "lava") {
-        // несколько угольков поднимаются от кромки — спокойно, без салюта
-        const r = card.getBoundingClientRect();
-        [0, 180, 360].forEach((delay, i) => FX.embers(r.left + r.width * (.25 + i * .25), r.bottom - r.height * (i * .3), "#FF7A1A", delay, 3));
-      }
-    }
+    let left = (card ? 1 : 0) + (body ? 1 : 0);
+    const finish = () => {
+      if (--left > 0) return;
+      if (!card) return remove(id);
+      const h = card.offsetHeight;
+      card.animate([{ height: h + "px", marginBottom: "0px" }, { height: "0px", marginBottom: "-10px" }],
+        { duration: 240, easing: "ease-in", fill: "forwards" }).onfinish = () => remove(id);
+    };
+    if (!left) return remove(id);
     setTimeout(() => {
-      if (card) {
-        const h = card.offsetHeight;
-        card.animate([{ height: h + "px", marginBottom: "0px" }, { height: "0px", marginBottom: "-10px" }],
-          { duration: 220, easing: "ease-in", fill: "forwards" });
-      }
-      setTimeout(() => remove(id), card ? 220 : 0);
-    }, 820);
+      if (card) FIRE.burnAway(card, { done: finish });
+      // текст в редакторе не горит, а тихо гаснет с тёплым отсветом — главное событие в списке
+      if (body) body.animate([{ opacity: 1, filter: "none" }, { opacity: .55, filter: "sepia(.6) saturate(1.6) hue-rotate(-12deg)", offset: .4 }, { opacity: 0, filter: "blur(2px) sepia(.8)" }],
+        { duration: 1100, easing: "ease-in", fill: "forwards" }).onfinish = finish;
+    }, 140);
   }
 
   /* ---------- папки и теги ---------- */
@@ -891,9 +910,36 @@ const NOTES = (() => {
   }
 
   /* ---------- снаружи ---------- */
+  // **жирный**, *курсив*, `код` прямо при наборе: знаки разметки исчезают, остаётся оформление
+  const INLINE_AUTO = [[/\*\*([^*\s](?:[^*]*?[^*\s])?)\*\*$/, "b"], [/(^|[^*\\])\*([^*\s](?:[^*]*?[^*\s])?)\*$/, "i"], [/(^|[^`])`([^`]+)`$/, "code"]];
+  function inlineAuto(e) {
+    if (e.inputType !== "insertText" || !/[*`]/.test(e.data || "")) return;
+    const s = getSelection(), node = s.anchorNode;
+    if (!s.isCollapsed || !node || node.nodeType !== 3 || node.parentElement.closest("code")) return;
+    const before = node.nodeValue.slice(0, s.anchorOffset);
+    for (const [re, tag] of INLINE_AUTO) {
+      const m = before.match(re);
+      if (!m) continue;
+      const text = tag === "b" ? m[1] : m[2], start = before.length - m[0].length + (tag === "b" ? 0 : m[1].length);
+      const r = document.createRange();
+      r.setStart(node, start); r.setEnd(node, s.anchorOffset);
+      r.deleteContents();
+      const el = document.createElement(tag);
+      el.textContent = text;
+      r.insertNode(el);
+      // курсор — сразу за оформленным словом, дальше обычный текст
+      const after = document.createTextNode("\u200b");
+      el.after(after);
+      const c = document.createRange();
+      c.setStart(after, 1); c.collapse(true);
+      s.removeAllRanges(); s.addRange(c);
+      return;
+    }
+  }
+
   function onInput(e) {
     if (e.target.id === "ntitle") edit("title", e.target.value);
-    else if (e.target.id === "nbody") afterEdit();
+    else if (e.target.id === "nbody") { inlineAuto(e); afterEdit(); }
     else if (e.target.id === "nq") { N.q = e.target.value; renderList(); }
     else if (e.target.id === "npickq") {
       N.pickQ = e.target.value;
@@ -967,7 +1013,7 @@ const NOTES = (() => {
       case "n-cmd": e?.preventDefault(); hideSelPop(); return cmd(v);
       case "n-link-ok": return applyLink();
       case "n-sel-remind": return remindFromText(el.closest(".nselpop").dataset.text);
-      case "n-rem-new": { N.menu = null; renderProps(); const n = cur(); return openNewFrom({ title: n.title || "Напоминание", category: n.color, noteId: n.id, note: n.title ? `Из заметки «${n.title}»` : "", hint: `Из заметки «${n.title || "Без названия"}»` }); }
+      case "n-rem-new": { N.menu = null; renderProps(); const n = cur(); return openNewFrom({ title: n.title || "Напоминание", category: n.color, noteId: n.id, hint: `Из заметки «${n.title || "Без названия"}»` }); }
       case "n-rem-open": return openEditor(v);
       case "n-link": edit("links", [...cur().links, v]); flush(); N.menu = null; renderProps(); return toast("Напоминание привязано");
       case "n-unlink": edit("links", cur().links.filter((x) => x !== v)); flush(); renderProps(); return toast("Отвязано — напоминание осталось в календаре");

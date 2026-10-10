@@ -501,3 +501,11 @@ def test_export_markdown_text_and_zip():
     assert [safe_filename("X", "md", taken) for _ in range(2)] == ["X.md", "X (2).md"]
     z = zipfile.ZipFile(io.BytesIO(notes_zip([n, {**n}])))
     assert z.namelist() == ["Покупки.md", "Покупки (2).md"]
+
+
+def test_linked_notes_in_items_and_month_info(store):
+    r = add(store, title="Купить продукты", d="2026-10-09", t="09:00")
+    n = store.note_save({"title": "Покупки", "links": [r["id"]]}, NOW)
+    it = store.items_between(date(2026, 10, 9), date(2026, 10, 9), NOW)[0]
+    assert it["notes"] == [{"id": n["id"], "title": "Покупки"}]
+    assert store.month_info(2026, 10)["noted"] == ["2026-10-09"]

@@ -556,7 +556,15 @@ class Store:
         return {**r, "_bday": bday.strftime(DFMT), "_offset": offset}
 
     # ---------- Выборки для интерфейса ----------
-    def item(self, r, d, now):
+    def note_map(self):
+        """id напоминания → заметки, с которыми оно связано (для меток в календаре)."""
+        out = {}
+        for n in self.notes:
+            for rid in n.get("links", []):
+                out.setdefault(rid, []).append({"id": n["id"], "title": n["title"] or "Без названия"})
+        return out
+
+    def item(self, r, d, now, notes=None):
         occ = occurrence_dt(r, d)
         it = {
             "id": r["id"], "kind": kind_of(r), "title": r["title"], "note": r.get("note", ""),
@@ -565,6 +573,8 @@ class Store:
             "repeat": r["repeat"], "date": d.strftime(DFMT), "time": occ.strftime("%H:%M"),
             "done": is_done(r, d), "past": occ < now,
         }
+        if notes and r["id"] in notes:
+            it["notes"] = notes[r["id"]]
         if it["kind"] == "birthday":
             it.update(age=age_on(r, d), past=False, remind=r.get("remind", []))
         elif it["category"] == "work" and self.work_muted(d):
@@ -573,7 +583,8 @@ class Store:
 
     def items_between(self, d1, d2, now):
         """Напоминания и дни рождения по дням (отпуск отдаётся отдельно — vacations_between)."""
-        out = [self.item(r, d, now)
+        notes = self.note_map()
+        out = [self.item(r, d, now, notes)
                for d in daterange(d1, d2) for r in self.reminders
                if kind_of(r) != "vacation" and occurs_on(r, d)]
         # дни рождения — первыми в своём дне, дальше по времени
@@ -638,8 +649,10 @@ class Store:
             c = next((c for c in clusters if c["start"] <= d <= c["end"]), None)
             if c:
                 vac[key] = {"id": c["id"], "start": c["start"] == d, "end": c["end"] == d}
+        linked = [r for r in self.of_kind("reminder") if r["id"] in self.note_map()]
+        noted = [d.strftime(DFMT) for d in daterange(first, last) if any(occurs_on(r, d) for r in linked)]
         return {"marks": self.month_marks(year, month), "hot": self.month_hot(year, month),
-                "bdays": bdays, "vac": vac}
+                "bdays": bdays, "vac": vac, "noted": noted}
 
     def year_overview(self, year):
         """Пометки для панели выбора месяца: дни рождения, отпуск и невыполненные приоритеты."""

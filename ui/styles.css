@@ -1205,6 +1205,19 @@ svg.hat { position: absolute; width: 13px; height: 16px; pointer-events: none; z
 .ed-tg .tg-txt small { display: block; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ed-tg.off .tg-ic { opacity: .5; }
 
+/* связь напоминания с заметкой: метка в строке и значок в клетке дня */
+.tag.note-tag { --c: #A27BFF; cursor: pointer; }
+.tag.note-tag:hover { filter: brightness(1.2); }
+.item.scb .tag.note-tag { --c: #fff; }
+.note-mark { position: absolute; top: 3px; right: 3px; width: 11px !important; height: 11px !important; color: #A27BFF; stroke-width: 2.2 !important; pointer-events: none; z-index: 2; }
+.bigcal .cell .note-mark { top: 7px; right: 8px; width: 13px !important; height: 13px !important; }
+.day.sel .note-mark, .cell.sel .note-mark { color: #fff; }
+
+/* кнопка «Сегодня» в шапке календарей */
+.today-btn { height: 34px; padding: 0 12px; font-size: 13px; margin-right: 6px; gap: 6px; }
+.today-btn svg.i { width: 15px; height: 15px; }
+.today-btn.here { opacity: .45; }
+
 /* =====================================================================
    Заметки
    ===================================================================== */
@@ -1477,42 +1490,29 @@ body.notes-mode .page { flex: 1; min-height: 0; display: flex; margin-top: 0; }
 .ed-note small { display: block; font-size: 11.5px; color: var(--muted); font-weight: 500; }
 
 /* --- «Сдвинь, чтобы удалить» --- */
-.burn { --p: 0; --travel: 236px; position: relative; width: 100%; height: 44px; border-radius: 22px; flex-shrink: 0; overflow: hidden; touch-action: none;
+.burn { --p: 0; --hot: 0; --travel: 236px; position: relative; width: 100%; height: 44px; border-radius: 22px; flex-shrink: 0; overflow: hidden; touch-action: none;
   background: var(--card-3); border: 1px solid var(--border); isolation: isolate; }
-.burn .fill { position: absolute; inset: 0; right: auto; width: calc(21px + var(--p) * var(--travel) + 21px); border-radius: 22px; z-index: -1;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--danger) 20%, transparent), color-mix(in srgb, var(--danger) 75%, transparent)); }
-.burn.hot .fill { background: var(--lava); background-size: 240% 100%; animation: burnFlow 1.4s linear infinite; box-shadow: var(--lava-glow); }
-@keyframes burnFlow { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+.burn .fill, .burn .lava { position: absolute; left: 0; top: 0; bottom: 0; width: calc(42px + var(--p) * var(--travel)); border-radius: 22px; z-index: -1; }
+.burn .fill { background: linear-gradient(90deg, color-mix(in srgb, var(--danger) 16%, transparent), color-mix(in srgb, var(--danger) 70%, transparent)); }
+/* лава проявляется плавно (--hot), узор задан в пикселях и не растягивается вместе с дорожкой */
+.burn .lava { opacity: var(--hot); background: linear-gradient(90deg, #7A1020, #C9183A 18%, #FF3D2E 38%, #FF8A1F 62%, #FFC23D 82%, #FFE08A);
+  box-shadow: 0 0 16px rgba(255, 106, 30, calc(var(--hot) * .6)); }
+.burn .lava::after { content: ""; position: absolute; inset: 0; border-radius: inherit; mix-blend-mode: soft-light; opacity: .55;
+  background: linear-gradient(100deg, transparent 0 35%, rgba(255, 236, 170, .55) 50%, transparent 65%) 0 0 / 220px 100% no-repeat;
+  animation: lavaDrift 2.4s ease-in-out infinite; }
+@keyframes lavaDrift { from { background-position: -220px 0; } to { background-position: 420px 0; } }
+.anim-off .burn .lava::after { animation: none; }
 .burn .lbl { position: absolute; inset: 0; display: grid; place-items: center; padding-left: 34px; font-size: 13px; font-weight: 580;
-  color: var(--muted); opacity: calc(1 - var(--p) * 1.8); pointer-events: none; white-space: nowrap; }
-.burn .tip { position: absolute; right: 12px; top: 50%; width: 16px; height: 20px; margin-top: -11px; opacity: calc(.18 + var(--p) * .82);
-  transform: scale(calc(.7 + var(--p) * .45)); transform-origin: 50% 90%; pointer-events: none; filter: grayscale(calc(1 - var(--p))); }
-.burn .tip svg { width: 100%; height: 100%; display: block; }
+  color: var(--muted); opacity: calc(1 - var(--p) * 2); pointer-events: none; white-space: nowrap; }
 .burn .knob { position: absolute; left: 3px; top: 3px; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
   background: var(--card); color: var(--danger); box-shadow: 0 2px 8px rgba(0, 0, 0, .3); cursor: grab; transform: translateX(calc(var(--p) * var(--travel))); }
-.burn .knob:focus-visible { outline: 2px solid var(--danger); outline-offset: 2px; }
+.burn .knob:focus-visible { outline: 2px solid var(--danger); outline-offset: -2px; }
 .burn.drag .knob { cursor: grabbing; }
 .burn .knob svg.i { width: 17px; height: 17px; }
-.burn .knob .fl { display: none; width: 16px; height: 20px; }
 .burn.hot .knob { color: #FF6A1A; }
-.burn.done .knob .tr { display: none; }
-.burn.done .knob .fl { display: block; animation: knobFlare .5s ease-out both; }
-@keyframes knobFlare { 0% { transform: scale(.6); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
-.burn.back .knob { transition: transform .5s cubic-bezier(.34, 1.56, .64, 1); }
-.burn.back .fill { transition: width .5s cubic-bezier(.34, 1.56, .64, 1); }
-.burn.back .lbl, .burn.back .tip { transition: opacity .4s, transform .4s; }
-.anim-off .burn.hot .fill { animation: none; }
-
-/* сгорание заметки: край прогорает снизу вверх, остаётся тонкая огненная кромка */
-@property --bn { syntax: "<percentage>"; inherits: false; initial-value: 0%; }
-.ncard.burning, .ned.burning .ned-burnable {
-  -webkit-mask-image: linear-gradient(to top, transparent var(--bn), #000 calc(var(--bn) + 10%));
-  mask-image: linear-gradient(to top, transparent var(--bn), #000 calc(var(--bn) + 10%));
-  animation: noteBurn .8s cubic-bezier(.4, .1, .6, 1) forwards; pointer-events: none;
-}
-.ncard.burning::after { content: ""; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none;
-  background: linear-gradient(to top, transparent calc(var(--bn) - 1%), #FFE08A var(--bn), #FF7A1A calc(var(--bn) + 3%),
-    rgba(154, 52, 18, .7) calc(var(--bn) + 6%), transparent calc(var(--bn) + 10%));
-  animation: noteBurn .8s cubic-bezier(.4, .1, .6, 1) forwards; }
-@keyframes noteBurn { from { --bn: -12%; } to { --bn: 100%; } }
-.ned.burning .ned-burnable { animation-duration: .9s; }
+/* огонёк живёт внутри кнопки, у конца дорожки; к концу кругляш входит прямо в него */
+.burn .flame { position: absolute; right: 3px; top: 0; width: 40px; height: 44px; pointer-events: none; z-index: 2; }
+.burn.back .knob { transition: transform .55s cubic-bezier(.34, 1.56, .64, 1); }
+.burn.back .fill, .burn.back .lava { transition: width .55s cubic-bezier(.34, 1.56, .64, 1), opacity .4s; }
+.burn.back .lbl { transition: opacity .4s; }
+.fx-layer { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 95; }

@@ -106,6 +106,8 @@ function tagsHtml(it) {
   }
   if (it.important) tags.push(`<span class="tag" style="--c:${IMPORTANT}">${icon("flame")}Приоритет</span>`);
   if (it.repeat && it.repeat !== "none") tags.push(`<span class="tag plain">${icon("repeat")}${esc(S.repeats[it.repeat])}</span>`);
+  // связанные заметки: метка открывает заметку
+  (it.notes || []).forEach((n) => tags.push(`<button class="tag note-tag" data-act="n-goto" data-nid="${n.id}" title="Открыть заметку">${icon("notes")}${esc(n.title)}</button>`));
   return tags.length ? `<div class="tags">${tags.join("")}</div>` : "";
 }
 
@@ -281,7 +283,9 @@ function monthGrid(y, m, rowsMin = 0) {
 
 function calHead() {
   const { y, m } = S.view;
+  const onToday = sameDay(S.selected, S.today) && y === S.today.getFullYear() && m === S.today.getMonth();
   return `<div class="card-head mp-anchor"><button class="mbtn" data-act="mp-open" title="Выбрать месяц и год">${MONTHS[m]} ${y}${icon("down")}</button><div class="spacer"></div>
+    <button class="btn btn-ghost today-btn${onToday ? " here" : ""}" data-act="today" title="Вернуться к сегодняшнему дню">${icon("target")}Сегодня</button>
     <div class="cal-nav">
       <button class="icon-btn" data-act="prev" title="Предыдущий месяц">${icon("left")}</button>
       <button class="icon-btn" data-act="next" title="Следующий месяц">${icon("right")}</button>
@@ -298,9 +302,10 @@ function miniCal(info) {
     const cls = ["day", d.getMonth() !== m ? "out" : "", sameDay(d, S.today) ? "today" : "", sameDay(d, S.selected) ? "sel" : "",
       isHot ? "hot" : "", bd ? "bday" : "", vac ? "vac" : "", vac && (vac.start || col === 0) ? "vs" : "", vac && (vac.end || col === 6) ? "ve" : ""].join(" ");
     const dots = n ? `<span class="dot">${"<i></i>".repeat(n)}</span>` : "";
+    const noted = (info.noted || []).includes(key) ? `<svg class="i note-mark" aria-label="Есть напоминание с заметкой"><use href="#notes"/></svg>` : "";
     const flame = isHot ? fireBg() : "";
     const title = bd ? ` title="🎂 ${esc(bd.join(", "))}"` : "";
-    return `<button class="${cls}" data-act="pick" data-date="${key}"${title}>${flame}<span class="num">${d.getDate()}</span>${dots}</button>`;
+    return `<button class="${cls}" data-act="pick" data-date="${key}"${title}>${flame}${noted}<span class="num">${d.getDate()}</span>${dots}</button>`;
   }).join("");
   return calHead() + `<div class="cal mini">${head}${days}</div>`;
 }
@@ -490,7 +495,8 @@ async function renderCalendar() {
     const more = list.length > max ? `<span class="more-n">ещё ${list.length - max}</span>` : "";
     const sea = vac ? `${SEA_IN_CALENDAR ? `<span class="sea" aria-hidden="true">${islandFor(vac, key)}<i></i><i></i></span>` : ""}${vs ? `<span class="vac-label" title="${esc(vac.title)}"><svg class="isl" viewBox="0 0 24 24"><use href="#island"/></svg><span>${esc(vac.title)}</span></span>` : ""}` : "";
     const confetti = isBday ? `<span class="confetti" aria-hidden="true">${"<i></i>".repeat(6)}</span>${BDAY_DECOR}` : "";
-    return `<button class="${cls}" data-act="pick" data-date="${key}"${vac ? ` data-vac="${vac.id}"` : ""}>${sea}${confetti}<span class="n">${isHot ? fireBg() : ""}<span class="num">${d.getDate()}</span></span>${chips}${more}</button>`;
+    const noted = list.some((i) => i.notes) ? `<svg class="i note-mark" aria-label="Есть напоминание с заметкой"><use href="#notes"/></svg>` : "";
+    return `<button class="${cls}" data-act="pick" data-date="${key}"${vac ? ` data-vac="${vac.id}"` : ""}>${sea}${confetti}${noted}<span class="n">${isHot ? fireBg() : ""}<span class="num">${d.getDate()}</span></span>${chips}${more}</button>`;
   }).join("");
 
   const dayList = dayItems.length || dayVacs.length
@@ -499,7 +505,7 @@ async function renderCalendar() {
 
   return `<div class="grid-cal compact">
     <div class="card">
-      ${calHead().replace('<div class="spacer"></div>', `<div class="spacer"></div><button class="btn btn-ghost" style="height:34px;padding:0 12px;font-size:13px;margin-right:6px" data-act="today">Сегодня</button>`)}
+      ${calHead()}
       <div class="bigcal">${head}${cells}</div>
     </div>
     <div class="card">

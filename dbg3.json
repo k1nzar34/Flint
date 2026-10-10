@@ -1,0 +1,36 @@
+{
+  "settings": {
+    "name": "Дима",
+    "gender": "m",
+    "theme": "dark",
+    "sound": true,
+    "snooze_minutes": 10,
+    "autostart": true,
+    "anim_effect": "lava",
+    "anim_speed": "normal",
+    "anim_live": true,
+    "tray_hint_shown": false
+  },
+  "reminders": [],
+  "notes": [
+    {
+      "id": "b48656aae1df475eb00e0ca1c9c526e1",
+      "title": "",
+      "body": "",
+      "color": "",
+      "icon": "",
+      "folder": "",
+      "tags": [],
+      "favorite": false,
+      "links": [],
+      "versions": [],
+      "created": "2026-10-10 15:39:32",
+      "updated": "2026-10-10 15:39:32"
+    }
+  ],
+  "note_folders": [
+    "Личное",
+    "Работа",
+    "Идеи"
+  ]
+}

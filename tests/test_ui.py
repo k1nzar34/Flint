@@ -544,3 +544,63 @@ def test_notes_delete_by_holding_delete_key(page):
     left = saved_notes(page)
     assert len(left) == 1
     expect(page.locator("#ntitle")).to_have_value(left[0]["title"])   # сразу открылась оставшаяся
+
+
+def test_notes_new_note_after_burn_is_visible(page):
+    add_note(page, title="Сгорит")
+    open_notes(page)
+    page.click(".ned-top [data-act=n-menu][data-v=more]")
+    page.click("[data-act=n-burn-focus]")
+    page.keyboard.down("Delete")
+    page.wait_for_timeout(1500)
+    page.keyboard.up("Delete")
+    expect(page.locator(".ncard")).to_have_count(0, timeout=3000)
+    page.click(".nnew [data-act=n-tpl]")
+    page.click(".ntpl:has-text('Дневник')")
+    expect(page.locator("#ned")).not_to_have_class(re.compile("burning"))   # редактор не «догорает» с прошлой заметки
+    expect(page.locator("#nbody")).to_contain_text("Итог дня")
+
+
+def test_notes_brackets_inside_bullet_become_task_and_inline_marks(page):
+    old = add_note(page, title="Старое", body="- \\[ \\] Кофе")
+    open_notes(page)
+    new_note(page)
+    page.keyboard.press("Enter")
+    page.keyboard.type("- [ ] Молоко")              # сначала список, потом «[ ] » — тоже задача, без скобок на экране
+    expect(page.locator("#nbody li[data-task='0']")).to_have_text("Молоко")
+    page.keyboard.press("Enter")
+    page.keyboard.press("Enter")
+    page.keyboard.type("очень **важно** и *тихо* ")
+    expect(page.locator("#nbody b")).to_have_text("важно")
+    expect(page.locator("#nbody i")).to_have_text("тихо")
+    assert "*" not in page.inner_text("#nbody")
+    page.wait_for_timeout(900)
+    assert [x for x in saved_notes(page) if x["id"] != old["id"]][0]["body"] == "- [ ] Молоко\n\nочень **важно** и *тихо*"
+    # старый текст со «скобками внутри пункта» открывается как задача
+    page.click(f".ncard[data-nid='{old['id']}']")
+    expect(page.locator("#nbody li[data-task='0']")).to_have_text("Кофе")
+
+
+def test_today_button_returns_to_today(page):
+    btn = page.locator(".card-head [data-act=today]").first
+    expect(btn).to_have_class(re.compile("here"))
+    page.click("[data-act=next]")
+    expect(btn).not_to_have_class(re.compile("here"))
+    btn.click()
+    expect(page.locator(".card-head .mbtn").first).to_contain_text(str(TODAY.year))
+    expect(page.locator(".card-head [data-act=today]").first).to_have_class(re.compile("here"))
+
+
+def test_note_tag_on_reminder_and_mark_in_calendar(page):
+    rid = api_call(page, "range", TOMORROW, TOMORROW)[0]["id"]          # «Купить продукты»
+    n = add_note(page, title="Покупки", links=[rid])
+    page.reload()
+    page.wait_for_selector(".item")
+    expect(page.locator(f".cal [data-date='{TOMORROW}'] .note-mark")).to_have_count(1)
+    page.click(f".cal [data-date='{TOMORROW}']")
+    tag = page.locator(".item .note-tag", has_text="Покупки").first
+    expect(tag).to_be_visible()
+    tag.click()
+    expect(page.locator("#ntitle")).to_have_value("Покупки")
+    page.click("nav [data-page=calendar]")
+    expect(page.locator(f".bigcal [data-date='{TOMORROW}'] .note-mark")).to_have_count(1)
