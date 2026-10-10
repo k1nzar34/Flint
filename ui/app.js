@@ -26,6 +26,7 @@ const PAGES = {
   home: null,
   calendar: ["Календарь", "Планируй дни и недели наперёд"],
   all: ["Все напоминания", "Всё, что впереди, в одном списке"],
+  notes: ["Заметки", "Мысли, планы и всё важное — в одном месте"],
   stats: ["Статистика", "Твои результаты и привычки"],
   settings: ["Настройки", "Сделай приложение под себя"],
 };
@@ -658,6 +659,11 @@ function renderChrome() {
   $("#chipDate").textContent = fullDate(S.today);
   $("#chipSub").textContent = remindersWord(items.length);
   document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("active", b.dataset.page === S.page));
+  document.body.classList.toggle("notes-mode", S.page === "notes");
+  const add = $("#heroAdd");
+  add.dataset.act = S.page === "notes" ? "n-new" : "add";
+  add.querySelector("span").textContent = S.page === "notes" ? "Новая заметка" : "Добавить";
+  add.title = S.page === "notes" ? "Новая заметка (Ctrl+N)" : "";
 
   if (S.page === "home") {
     $("#heroTitle").textContent = S.settings.name ? `Привет, ${S.settings.name} 👋` : phrase("hello");
@@ -680,7 +686,9 @@ async function refresh(animate = false) {
   S.today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const seq = ++renderSeq;
   S.todayItems = await api("range", iso(S.today), iso(S.today));
-  const html = await ({ home: renderHome, calendar: renderCalendar, all: renderAll, stats: renderStats, settings: renderSettings })[S.page]();
+  // заметки живут своей жизнью: фоновое обновление не трогает редактор, чтобы не сбить набор текста
+  if (S.page === "notes" && !animate && $("#notesRoot")) { if (seq === renderSeq) { renderChrome(); NOTES.tick(); } return; }
+  const html = await ({ home: renderHome, calendar: renderCalendar, all: renderAll, notes: NOTES.shell, stats: renderStats, settings: renderSettings })[S.page]();
   if (seq !== renderSeq) return; // пришёл более свежий рендер
   renderChrome();
   const page = $("#page");
@@ -706,11 +714,13 @@ function afterRender(page) {
     S.justDone = null;
   }
   FX.playSeg();
+  if (S.page === "notes") NOTES.mount();
   if (SEA_IN_CALENDAR) FX.boats(page.querySelector(".bigcal"));
 }
 
 function go(page) {
   if (!PAGES.hasOwnProperty(page)) return;
+  if (S.page === "notes" && page !== "notes") NOTES.leave();
   const nav = $("#nav"), from = nav.querySelector("button.active"), to = nav.querySelector(`[data-page="${page}"]`);
   if (from !== to) {
     nav.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === to));
@@ -741,9 +751,10 @@ const REMIND_OPTS = [[0, "В сам день"], [1, "За день"], [7, "За 
 async function openEditor(id) {
   const r = await api("get", id);
   if (!r) return toast("Запись не найдена");
+  const linked = await api("reminder_notes", id);
   showEditor({ id: r.id, kind: r.kind || "reminder", title: r.title, note: r.note || "", date: r.date, time: r.time,
     repeat: r.repeat, category: r.category || "", important: !!r.important, animated: !!r.animated,
-    birth_year: r.birth_year || "", remind: r.remind || [], date_end: r.date_end || r.date, mute_work: !!r.mute_work });
+    birth_year: r.birth_year || "", remind: r.remind || [], date_end: r.date_end || r.date, mute_work: !!r.mute_work, linked });
   if (r.kind === "birthday") celebrate($(".modal-head .dateblock"));
 }
 
@@ -760,8 +771,25 @@ function openNew(dateStr, kind = "reminder") {
     birth_year: "", remind: [0, 1], date_end: iso(addDays(parse(dateStr), 6)), mute_work: true, asked });
 }
 
+// новое напоминание из заметки: название, дата и время уже подставлены, после сохранения — связь с заметкой
+function openNewFrom({ title, date, time, category, noteId, note, hint }) {
+  openNew(date || iso(addDays(S.today, 1)));
+  const ed = S.ed;
+  ed.title = title; ed.noteId = noteId;
+  if (category) ed.category = category;
+  $("#edTitle").value = title;
+  if (note) $("#edNote").value = note;
+  if (time || date) $("#edTime").value = time || "09:00";
+  if (hint) { $("#edFromNote").innerHTML = `${icon("notes")}<span>${esc(hint)}</span>`; $("#edFromNote").hidden = false; }
+  markPreset(); renderEdChoices(); updateEdHead();
+}
+
 function showEditor(ed) {
   S.ed = ed;
+  $("#edFromNote").hidden = true;
+  const ln = $("#edNotes");
+  ln.hidden = !(ed.linked && ed.linked.length);
+  ln.innerHTML = (ed.linked || []).map((n) => `<button class="ed-note" data-act="n-goto" data-nid="${n.id}" title="Открыть заметку">${icon("notes")}<span><small>Заметка</small>${esc(n.title || "Без названия")}</span>${icon("right")}</button>`).join("");
   $("#edTitle").value = ed.title;
   $("#edNote").value = ed.note;
   $("#edTime").value = ed.time;
@@ -908,13 +936,14 @@ async function saveEditor() {
   }
   const payload = { id: ed.id, kind: ed.kind, title: $("#edTitle").value, note: $("#edNote").value, date: ed.date,
     time, repeat: ed.repeat, category: ed.category, important: ed.important, animated: ed.animated && !!ed.category,
-    birth_year: $("#edBYear").value.trim(), remind: ed.remind, date_end: ed.date_end, mute_work: ed.mute_work };
+    birth_year: $("#edBYear").value.trim(), remind: ed.remind, date_end: ed.date_end, mute_work: ed.mute_work, note_id: ed.noteId || null };
   const res = await api("save", payload);
   if (res.error) {
     $("#edError").textContent = res.error;
     return;
   }
   closeEditor();
+  if (ed.noteId) { NOTES.onReminderSaved(ed.noteId, res.id); toast("Напоминание создано и связано с заметкой"); return refresh(); }
   select(res.date);
   toast(ed.id ? "Изменения сохранены" : KIND_UI[ed.kind].saved);
   if (!ed.id && ed.kind === "birthday" && S.anim !== "off") FX.salute(); // салют — только для нового ДР
@@ -967,6 +996,7 @@ async function toggleDone(id, date) {
 
 /* ===================== Обработчики ===================== */
 document.addEventListener("click", async (e) => {
+  if (S.page === "notes" && NOTES.onBodyClick(e)) return;
   const el = e.target.closest("[data-act], [data-page]");
   if (!e.target.closest("#ctx")) closeMenu();
   if (S.mp && !e.target.closest(".mpop") && !e.target.closest("[data-act=mp-open]")) closeMonthPicker();
@@ -976,6 +1006,8 @@ document.addEventListener("click", async (e) => {
     return;
   }
   const act = el.dataset.act;
+  if (act === "n-goto") return NOTES.goto(el.dataset.nid);
+  if (act && /^nq?-/.test(act)) return NOTES.onAct(act, el, e);
   const holder = el.closest("[data-id]");
   const id = el.dataset.id || holder?.dataset.id;
   const date = holder?.dataset.date;
@@ -1053,7 +1085,7 @@ document.addEventListener("click", async (e) => {
     case "set-anim": return saveSettings({ anim_effect: el.dataset.v });
     case "set-speed": return saveSettings({ anim_speed: el.dataset.v });
     case "switch": return saveSettings({ [el.dataset.key]: !S.settings[el.dataset.key] });
-    case "quit": return api("quit");
+    case "quit": await NOTES.flush(); return api("quit");
     // редактор
     case "close-editor": return closeEditor();
     case "ed-save": return saveEditor();
@@ -1178,14 +1210,17 @@ $("#edTime").addEventListener("input", (e) => {
 // закрываем меню при прокрутке, но не от «эха» прокрутки сразу после открытия
 $("#main").addEventListener("scroll", () => { if (S.ctx && Date.now() - S.ctx.opened > 200) closeMenu(); });
 
+document.addEventListener("input", (e) => NOTES.onInput(e));
+
 document.addEventListener("keydown", (e) => {
+  if (NOTES.onKey(e)) return;
   if (e.key === "Escape") { closeMenu(); closeMonthPicker(); if (S.ed) closeEditor(); }
   if (S.ed && e.key === "Enter" && (e.ctrlKey || e.target.id === "edTitle")) { e.preventDefault(); saveEditor(); }
   if (!S.ed && e.ctrlKey && e.key.toLowerCase() === "n") { e.preventDefault(); openNew(iso(S.selected)); }
 });
 
 /* ===================== Старт ===================== */
-window.app = { refresh: () => refresh(), openEditor, go };
+window.app = { refresh: () => refresh(), openEditor, go, flushNotes: () => NOTES.flush() };
 
 (async function init() {
   const info = await api("init");

@@ -453,5 +453,5 @@ const FX = (() => {
     }, delay);
   }
 
-  return { pour, sparks, captureSeg, playSeg, theme, jsAnims, boats, kindSwitch, salute };
+  return { pour, sparks, embers, captureSeg, playSeg, theme, jsAnims, boats, kindSwitch, salute };
 })();

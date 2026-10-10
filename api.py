@@ -3,7 +3,10 @@ import sys
 import threading
 from datetime import date, datetime
 
-from core import CATEGORIES, DFMT, REPEATS, Store, ValidationError, kind_of, next_birthday
+import base64
+
+from core import (CATEGORIES, DFMT, REPEATS, Store, ValidationError, kind_of, next_birthday, note_markdown,
+                  note_text, notes_zip, safe_filename)
 
 store = Store()
 lock = threading.RLock()
@@ -100,6 +103,61 @@ class Api:
     def toggle_done(self, rid, day):
         with lock:
             return store.toggle_done(rid, day)
+
+    # ---------- Заметки ----------
+    def notes(self):
+        with lock:
+            return {"notes": store.notes_list(), "folders": store.folders}
+
+    def note_save(self, payload):
+        with lock:
+            try:
+                return {"ok": True, "note": store.note_save(payload, datetime.now()), "folders": store.folders}
+            except ValidationError as e:
+                return {"error": str(e)}
+
+    def note_delete(self, nid):
+        with lock:
+            return store.note_delete(nid)
+
+    def folder_add(self, name):
+        with lock:
+            try:
+                return {"ok": True, "folders": store.folder_add(name)}
+            except ValidationError as e:
+                return {"error": str(e)}
+
+    def note_versions(self, nid):
+        with lock:
+            return store.note_versions(nid)
+
+    def note_restore(self, nid, index):
+        with lock:
+            try:
+                return {"ok": True, "note": store.note_restore(nid, index, datetime.now())}
+            except ValidationError as e:
+                return {"error": str(e)}
+
+    def reminders_brief(self):
+        with lock:
+            return store.reminders_brief(date.today())
+
+    def reminder_notes(self, rid):
+        with lock:
+            return store.reminder_notes(rid)
+
+    def note_export(self, nid, fmt):
+        """Содержимое для экспорта: md / txt одной заметки или zip со всеми (base64)."""
+        with lock:
+            if fmt == "all":
+                return {"name": f"Flint — заметки {date.today().strftime(DFMT)}.zip",
+                        "b64": base64.b64encode(notes_zip(store.notes)).decode()}
+            n = store.find_note(nid)
+            if not n:
+                return {"error": "Заметка не найдена"}
+            if fmt == "txt":
+                return {"name": safe_filename(n["title"], "txt"), "text": note_text(n)}
+            return {"name": safe_filename(n["title"], "md"), "text": note_markdown(n)}
 
     def save_settings(self, values):
         with lock:

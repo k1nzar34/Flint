@@ -6,8 +6,12 @@
   reminder — обычное напоминание (по умолчанию);
   birthday — день рождения: повторяется каждый год, напоминает в день / за день / за неделю;
   vacation — отпуск: диапазон дат, может глушить рабочие напоминания.
+
+Заметки (notes) хранятся отдельным списком: текст в Markdown, цвет — одна из категорий,
+папка, теги, избранное и ссылки на связанные напоминания.
 """
 import calendar
+import re
 import json
 import os
 import uuid
@@ -15,6 +19,7 @@ from datetime import date, datetime, timedelta
 
 FMT = "%Y-%m-%d %H:%M"
 DFMT = "%Y-%m-%d"
+NFMT = "%Y-%m-%d %H:%M:%S"   # у заметок — с секундами: правки идут часто
 
 REPEATS = {
     "none": "Разово",
@@ -32,6 +37,15 @@ CATEGORIES = {
     "growth": "Развитие",
 }
 KINDS = ("reminder", "birthday", "vacation")
+NOTE_TITLE_MAX = 200
+NOTE_BODY_MAX = 200_000            # ~ сотня страниц текста — с запасом
+NOTE_TAGS_MAX = 20
+NOTE_TAG_LEN = 30
+NOTE_FOLDER_LEN = 40
+DEFAULT_FOLDERS = ["Личное", "Работа", "Идеи"]
+NOTE_ICONS = ("", "note", "todo", "bag", "bulb", "book", "calendar")
+NOTE_VERSION_GAP = timedelta(minutes=10)   # новая версия — после паузы в правках
+NOTE_VERSIONS_MAX = 30
 MONTHS_GEN = ["января", "февраля", "марта", "апреля", "мая", "июня",
               "июля", "августа", "сентября", "октября", "ноября", "декабря"]
 BIRTHDAY_OFFSETS = (0, 1, 7)       # в сам день, за день, за неделю
@@ -166,6 +180,8 @@ class Store:
     def __init__(self, path=None):
         self.path = path or default_path()
         self.reminders = []
+        self.notes = []
+        self.folders = list(DEFAULT_FOLDERS)
         self.settings = dict(DEFAULT_SETTINGS)
         self.load()
 
@@ -187,13 +203,19 @@ class Store:
             return
         self.settings.update(data.get("settings", {}))
         self.reminders = [r for r in data.get("reminders", []) if "start" in r]
+        self.notes = [n for n in data.get("notes", []) if isinstance(n, dict) and n.get("id")]
+        if isinstance(data.get("note_folders"), list):
+            self.folders = [f for f in data["note_folders"] if isinstance(f, str) and f.strip()]
 
     def save(self):
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
         tmp = self.path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
-            json.dump({"settings": self.settings, "reminders": self.reminders},
+            json.dump({"settings": self.settings, "reminders": self.reminders,
+                       "notes": self.notes, "note_folders": self.folders},
                       f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())  # заметки пишутся часто — файл должен реально лечь на диск до подмены
         os.replace(tmp, self.path)
 
     def find(self, rid):
@@ -218,6 +240,9 @@ class Store:
                  notified=fmt(now), snooze_until=None, **fields)  # уведомляем только о том, что впереди
         if not existing:
             self.reminders.append(r)
+        note = self.find_note(payload.get("note_id")) if payload.get("note_id") else None
+        if note and r["id"] not in note.setdefault("links", []):
+            note["links"].append(r["id"])  # напоминание создано из заметки — сразу связываем
         self.save()
         return r
 
@@ -289,7 +314,154 @@ class Store:
 
     def delete(self, rid):
         self.reminders = [r for r in self.reminders if r["id"] != rid]
+        for n in self.notes:  # связанное напоминание удалили — ссылка в заметке больше не нужна
+            if rid in n.get("links", []):
+                n["links"] = [x for x in n["links"] if x != rid]
         self.save()
+
+    # ---------- Заметки ----------
+    def find_note(self, nid):
+        return next((n for n in self.notes if n["id"] == nid), None)
+
+    @staticmethod
+    def _note_tags(raw):
+        out = []
+        for t in raw if isinstance(raw, list) else []:
+            t = str(t).strip().lstrip("#").strip().lower()[:NOTE_TAG_LEN]
+            if t and t not in out:
+                out.append(t)
+        return out[:NOTE_TAGS_MAX]
+
+    @staticmethod
+    def _public(n):
+        """Заметка для интерфейса: без тяжёлой истории версий, но с их количеством."""
+        out = {k: v for k, v in n.items() if k != "versions"}
+        out["nversions"] = len(n.get("versions", []))
+        return out
+
+    def note_save(self, payload, now):
+        """Создать или частично обновить заметку (автосохранение шлёт только изменённые поля).
+
+        Дата изменения сдвигается, только если что-то действительно поменялось.
+        Перед правкой текста после паузы (NOTE_VERSION_GAP) прежнее состояние уходит в историю версий.
+        """
+        existing = self.find_note(payload.get("id")) if payload.get("id") else None
+        if payload.get("id") and not existing:
+            raise ValidationError("Заметка уже удалена")
+        n = existing or {"id": uuid.uuid4().hex, "title": "", "body": "", "color": "", "icon": "", "folder": "",
+                         "tags": [], "favorite": False, "links": [], "versions": [],
+                         "created": now.strftime(NFMT), "updated": now.strftime(NFMT)}
+        changes = {}
+        if "title" in payload:
+            title = str(payload["title"]).replace("\n", " ").strip()
+            if len(title) > NOTE_TITLE_MAX:
+                raise ValidationError(f"Слишком длинный заголовок (максимум {NOTE_TITLE_MAX} символов)")
+            changes["title"] = title
+        if "body" in payload:
+            body = str(payload["body"]).replace("\r\n", "\n")
+            if len(body) > NOTE_BODY_MAX:
+                raise ValidationError("Заметка слишком большая — раздели её на несколько")
+            changes["body"] = body
+        if "color" in payload:
+            color = payload["color"] or ""
+            if color and color not in CATEGORIES:
+                raise ValidationError("Неизвестный цвет")
+            changes["color"] = color
+        if "icon" in payload:
+            ic = payload["icon"] or ""
+            if ic not in NOTE_ICONS:
+                raise ValidationError("Неизвестная иконка")
+            changes["icon"] = ic
+        if "folder" in payload:
+            folder = str(payload["folder"] or "").strip()[:NOTE_FOLDER_LEN]
+            if folder and folder not in self.folders:
+                self.folders.append(folder)
+            changes["folder"] = folder
+        if "tags" in payload:
+            changes["tags"] = self._note_tags(payload["tags"])
+        if "favorite" in payload:
+            changes["favorite"] = bool(payload["favorite"])
+        if "links" in payload:
+            ids = {r["id"] for r in self.reminders}
+            changes["links"] = list(dict.fromkeys(x for x in payload["links"] if x in ids))
+        dirty = not existing or any(n.get(k) != v for k, v in changes.items())
+        text_changed = existing and any(k in changes and changes[k] != n.get(k) for k in ("title", "body"))
+        if text_changed:
+            self._snapshot(n, now)
+        n.update(changes)
+        if existing and dirty:
+            n["updated"] = now.strftime(NFMT)
+        if not existing:
+            self.notes.append(n)
+        if dirty:
+            self.save()
+        return self._public(n)
+
+    @staticmethod
+    def _snapshot(n, now, force=False):
+        """Положить текущее состояние в историю, если с прошлой версии прошла пауза (или force)."""
+        vs = n.setdefault("versions", [])
+        if not n.get("title") and not n.get("body"):
+            return
+        if vs and vs[-1]["title"] == n["title"] and vs[-1]["body"] == n["body"]:
+            return
+        if not force and vs and now - datetime.strptime(vs[-1]["saved"], NFMT) < NOTE_VERSION_GAP:
+            return
+        vs.append({"at": n.get("updated", now.strftime(NFMT)), "saved": now.strftime(NFMT),
+                   "title": n["title"], "body": n["body"]})
+        del vs[:-NOTE_VERSIONS_MAX]
+
+    def note_versions(self, nid):
+        n = self.find_note(nid)
+        if not n:
+            return []
+        return [{"i": i, "at": v["at"], "title": v["title"], "body": v["body"]} for i, v in enumerate(n.get("versions", []))][::-1]
+
+    def note_restore(self, nid, index, now):
+        n = self.find_note(nid)
+        vs = n.get("versions", []) if n else []
+        if not 0 <= int(index) < len(vs):
+            raise ValidationError("Такой версии нет")
+        v = vs[int(index)]
+        self._snapshot(n, now, force=True)  # текущий текст тоже остаётся в истории
+        n.update(title=v["title"], body=v["body"], updated=now.strftime(NFMT))
+        self.save()
+        return self._public(n)
+
+    def folder_add(self, name):
+        name = str(name or "").strip()[:NOTE_FOLDER_LEN]
+        if not name:
+            raise ValidationError("Напиши название папки")
+        if any(f.lower() == name.lower() for f in self.folders):
+            raise ValidationError("Такая папка уже есть")
+        self.folders.append(name)
+        self.save()
+        return self.folders
+
+    def note_delete(self, nid):
+        before = len(self.notes)
+        self.notes = [n for n in self.notes if n["id"] != nid]
+        if len(self.notes) != before:
+            self.save()
+        return len(self.notes) != before
+
+    def notes_list(self):
+        """Все заметки: сначала избранные, дальше по дате изменения (новые сверху)."""
+        by_date = sorted(self.notes, key=lambda n: n.get("updated", ""), reverse=True)
+        return [self._public(n) for n in sorted(by_date, key=lambda n: not n.get("favorite"))]  # сортировка стабильная
+
+    def reminder_notes(self, rid):
+        return [{"id": n["id"], "title": n["title"]} for n in self.notes if rid in n.get("links", [])]
+
+    def reminders_brief(self, today):
+        """Обычные напоминания для связи с заметками: ближайшее вхождение (или последнее, если всё в прошлом)."""
+        out = []
+        for r in self.of_kind("reminder"):
+            nxt = next((d for d in daterange(today, today + timedelta(days=400)) if occurs_on(r, d)), None)
+            day = nxt or parse(r["start"]).date()
+            out.append({"id": r["id"], "title": r["title"], "category": r.get("category", ""), "repeat": r["repeat"],
+                        "date": day.strftime(DFMT), "time": r["start"][11:], "upcoming": nxt is not None})
+        return sorted(out, key=lambda x: (not x["upcoming"], x["date"], x["time"]))
 
     def toggle_done(self, rid, day_str):
         r = self.find(rid)
@@ -516,3 +688,56 @@ class Store:
             "done": done, "missed": missed, "left": left, "total": total,
             "percent": round(done / total * 100) if total else 0, "categories": cats,
         }
+
+
+# ---------- Экспорт заметок ----------
+_MD_ESC = re.compile(r"\\([\\`*_\[\]#>+\-.!()])")
+
+
+def note_markdown(n):
+    """Заметка как самостоятельный .md: заголовок, папка и теги строкой, дальше текст как есть."""
+    head = f"# {n.get('title') or 'Без названия'}\n"
+    meta = []
+    if n.get("folder"):
+        meta.append(f"Папка: {n['folder']}")
+    if n.get("tags"):
+        meta.append("Теги: " + " ".join("#" + t for t in n["tags"]))
+    return head + ("\n" + " · ".join(meta) + "\n" if meta else "") + "\n" + n.get("body", "").rstrip() + "\n"
+
+
+def note_text(n):
+    """Обычный текст для Блокнота: без разметки, задачи — значками ☐ / ☑."""
+    out = [n.get("title") or "Без названия", ""]
+    for line in n.get("body", "").split("\n"):
+        line = re.sub(r"^(\s*)[-*+] \[[xX]\] ", r"\1☑ ", line)
+        line = re.sub(r"^(\s*)[-*+] \[ \] ", r"\1☐ ", line)
+        line = re.sub(r"^(\s*)[-*+] ", r"\1• ", line)
+        line = re.sub(r"^#{1,6} ", "", line)
+        line = re.sub(r"^> ?", "", line)
+        line = re.sub(r"\[([^\]]*)\]\(([^)]*)\)", r"\1 (\2)", line)
+        line = re.sub(r"\*\*(.+?)\*\*|__(.+?)__", lambda m: m.group(1) or m.group(2), line)
+        line = re.sub(r"(?<![\\*])\*(?!\s)(.+?)(?<!\s)\*", r"\1", line)
+        line = line.replace("`", "")
+        out.append(_MD_ESC.sub(r"\1", line))
+    return "\n".join(out).rstrip() + "\n"
+
+
+def safe_filename(title, ext, taken=None):
+    base = re.sub(r'[\\/:*?"<>|\x00-\x1f]+', " ", title or "").strip(" .")[:80] or "Без названия"
+    name, i = f"{base}.{ext}", 2
+    while taken is not None and name.lower() in taken:
+        name, i = f"{base} ({i}).{ext}", i + 1
+    if taken is not None:
+        taken.add(name.lower())
+    return name
+
+
+def notes_zip(notes):
+    """Резервная копия: каждая заметка — отдельный .md в zip-архиве."""
+    import io
+    import zipfile
+    buf, taken = io.BytesIO(), set()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for n in notes:
+            z.writestr(safe_filename(n.get("title"), "md", taken), note_markdown(n))
+    return buf.getvalue()

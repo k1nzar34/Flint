@@ -357,3 +357,147 @@ def test_animated_needs_category(store):
     assert store.item(r, date(2026, 10, 8), NOW)["animated"] is True
     r = store.upsert({**r, "category": "", "date": "2026-10-08", "time": "18:00"}, NOW)  # сняли категорию — сцена уходит
     assert r["animated"] is False
+
+
+# ---------- Заметки ----------
+LATER = datetime(2026, 10, 8, 12, 5)
+
+
+def test_note_create_and_persist(store):
+    n = store.note_save({"title": "Идеи для Flint", "body": "- [ ] шаблоны\n**жирный**", "color": "growth"}, NOW)
+    assert n["created"] == n["updated"] == "2026-10-08 12:00:00"
+    again = Store(store.path)  # перечитали файл с диска
+    assert again.find_note(n["id"])["body"] == "- [ ] шаблоны\n**жирный**"
+    assert again.reminders == [] and again.folders == ["Личное", "Работа", "Идеи"]
+
+
+def test_note_empty_is_allowed_while_typing(store):
+    n = store.note_save({}, NOW)
+    assert n["title"] == "" and n["body"] == ""
+
+
+def test_note_partial_update_keeps_other_fields(store):
+    n = store.note_save({"title": "A", "body": "текст", "color": "work"}, NOW)
+    store.note_save({"id": n["id"], "body": "новый текст"}, LATER)
+    n2 = store.find_note(n["id"])
+    assert (n2["title"], n2["body"], n2["color"]) == ("A", "новый текст", "work")
+    assert n2["updated"] == "2026-10-08 12:05:00"
+
+
+def test_note_updated_moves_only_on_real_change(store):
+    n = store.note_save({"title": "A"}, NOW)
+    store.note_save({"id": n["id"], "title": "A"}, LATER)
+    assert store.find_note(n["id"])["updated"] == "2026-10-08 12:00:00"
+
+
+def test_note_validation(store):
+    with pytest.raises(ValidationError):
+        store.note_save({"title": "x" * 201}, NOW)
+    with pytest.raises(ValidationError):
+        store.note_save({"color": "purple"}, NOW)
+    with pytest.raises(ValidationError):
+        store.note_save({"id": "nope", "title": "A"}, NOW)  # заметку уже удалили — не воскрешаем
+
+
+def test_note_title_single_line_and_tags_normalized(store):
+    n = store.note_save({"title": "  две\nстроки ", "tags": ["#Проект", "проект", " важное ", ""]}, NOW)
+    assert n["title"] == "две строки"
+    assert n["tags"] == ["проект", "важное"]
+
+
+def test_notes_list_favorites_first_then_recent(store):
+    a = store.note_save({"title": "старая"}, NOW)
+    b = store.note_save({"title": "новая"}, LATER)
+    c = store.note_save({"title": "избранная", "favorite": True}, NOW)
+    assert [n["id"] for n in store.notes_list()] == [c["id"], b["id"], a["id"]]
+
+
+def test_note_delete(store):
+    n = store.note_save({"title": "A"}, NOW)
+    assert store.note_delete(n["id"]) is True
+    assert store.note_delete(n["id"]) is False
+    assert Store(store.path).notes == []
+
+
+def test_note_links_only_existing_and_cleaned_on_reminder_delete(store):
+    r = add(store)
+    n = store.note_save({"title": "A", "links": [r["id"], "ghost", r["id"]]}, NOW)
+    assert n["links"] == [r["id"]]
+    store.delete(r["id"])
+    assert store.find_note(n["id"])["links"] == []
+
+
+def test_old_file_without_notes_loads(store, tmp_path):
+    p = tmp_path / "old.json"
+    p.write_text('{"settings": {}, "reminders": []}', encoding="utf-8")
+    s = Store(str(p))
+    assert s.notes == [] and s.folders == ["Личное", "Работа", "Идеи"]
+
+
+def test_note_icon_and_folder_autoadd(store):
+    n = store.note_save({"title": "A", "icon": "bag", "folder": "Поездки"}, NOW)
+    assert n["icon"] == "bag" and "Поездки" in store.folders
+    with pytest.raises(ValidationError):
+        store.note_save({"icon": "rocket"}, NOW)
+
+
+def test_folder_add_validation(store):
+    assert store.folder_add("  Учёба ")[-1] == "Учёба"
+    with pytest.raises(ValidationError):
+        store.folder_add("учёба")
+    with pytest.raises(ValidationError):
+        store.folder_add("   ")
+
+
+def test_note_versions_after_pause_and_restore(store):
+    from datetime import timedelta
+    n = store.note_save({"title": "План", "body": "v1"}, NOW)
+    store.note_save({"id": n["id"], "body": "v2"}, NOW + timedelta(minutes=1))     # первая правка — v1 в истории
+    store.note_save({"id": n["id"], "body": "v3"}, NOW + timedelta(minutes=2))     # без паузы — новой версии нет
+    store.note_save({"id": n["id"], "body": "v4"}, NOW + timedelta(minutes=15))    # после паузы — v3 в истории
+    vs = store.note_versions(n["id"])
+    assert [v["body"] for v in vs] == ["v3", "v1"]          # новые сверху
+    assert "versions" not in store.notes_list()[0] and store.notes_list()[0]["nversions"] == 2
+    r = store.note_restore(n["id"], vs[1]["i"], NOW + timedelta(minutes=16))
+    assert r["body"] == "v1"
+    assert store.note_versions(n["id"])[0]["body"] == "v4"   # текущий текст не потерялся
+    with pytest.raises(ValidationError):
+        store.note_restore(n["id"], 99, NOW)
+
+
+def test_versions_capped(store):
+    from datetime import timedelta
+    n = store.note_save({"title": "A", "body": "0"}, NOW)
+    for i in range(1, 40):
+        store.note_save({"id": n["id"], "body": str(i)}, NOW + timedelta(minutes=11 * i))
+    assert len(store.note_versions(n["id"])) == 30
+
+
+def test_reminder_created_from_note_is_linked(store):
+    n = store.note_save({"title": "Ноутбук"}, NOW)
+    r = add(store, title="Позвонить в сервис", note_id=n["id"])
+    assert store.find_note(n["id"])["links"] == [r["id"]]
+    assert store.reminder_notes(r["id"]) == [{"id": n["id"], "title": "Ноутбук"}]
+
+
+def test_reminders_brief_next_occurrence(store):
+    add(store, title="Каждый день", repeat="daily", d="2026-10-01", t="08:00")
+    b = store.reminders_brief(date(2026, 10, 8))
+    assert b[0]["date"] == "2026-10-08" and b[0]["upcoming"] is True
+
+
+def test_export_markdown_text_and_zip():
+    from core import note_markdown, note_text, notes_zip, safe_filename
+    import io, zipfile
+    n = {"title": "Покупки", "folder": "Личное", "tags": ["дом"],
+         "body": "## Список\n- [ ] Хлеб\n- [x] Молоко\n- **важно** и *тихо*\n> идея\n[сайт](https://x.org) 2\\*3"}
+    md = note_markdown(n)
+    assert md.startswith("# Покупки\n\nПапка: Личное · Теги: #дом\n\n## Список")
+    txt = note_text(n)
+    assert "☐ Хлеб" in txt and "☑ Молоко" in txt and "• важно и тихо" in txt
+    assert "идея" in txt and "сайт (https://x.org) 2*3" in txt
+    assert safe_filename('a/b:c?', "md") == "a b c.md"
+    taken = set()
+    assert [safe_filename("X", "md", taken) for _ in range(2)] == ["X.md", "X (2).md"]
+    z = zipfile.ZipFile(io.BytesIO(notes_zip([n, {**n}])))
+    assert z.namelist() == ["Покупки.md", "Покупки (2).md"]

@@ -3,6 +3,7 @@
 Запуск из исходников:  python app.py
 Режим разработки в браузере (без pywebview):  python devserver.py
 """
+import base64
 import json
 import os
 import sys
@@ -57,11 +58,41 @@ class MainApi(Api):
         style_titlebar(store.settings["theme"])
         return True
 
+    def save_export(self, nid, fmt):
+        """Экспорт заметки: окно «Сохранить как…» и запись файла."""
+        data = self.note_export(nid, fmt)
+        if data.get("error"):
+            return data
+        ext = data["name"].rsplit(".", 1)[-1]
+        kinds = {"md": "Markdown (*.md)", "txt": "Текст (*.txt)", "zip": "Архив (*.zip)"}
+        path = state["main"].create_file_dialog(webview.SAVE_DIALOG, save_filename=data["name"],
+                                                file_types=(kinds.get(ext, "Все файлы (*.*)"),))
+        if not path:
+            return {"cancelled": True}
+        path = path if isinstance(path, str) else path[0]
+        try:
+            if "b64" in data:
+                with open(path, "wb") as f:
+                    f.write(base64.b64decode(data["b64"]))
+            else:
+                with open(path, "w", encoding="utf-8", newline="\n") as f:
+                    f.write(data["text"])
+        except OSError as e:
+            return {"error": f"Не удалось сохранить: {e.strerror}"}
+        return {"ok": True, "path": path}
+
     def quit(self):
+        state["quitting"] = True  # из окна: заметку интерфейс уже дописал сам
         quit_app()
 
 
 def quit_app(*_):
+    # выход из трея: сначала дописываем недосохранённую заметку (автосохранение ждёт паузы в наборе)
+    if state["main"] and not state["quitting"]:
+        try:
+            state["main"].evaluate_js("window.app && app.flushNotes && app.flushNotes()")
+        except Exception:
+            pass
     state["quitting"] = True
     if state["tray"]:
         try:

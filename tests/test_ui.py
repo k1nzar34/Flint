@@ -79,7 +79,7 @@ def item(pg, title):
     return pg.locator(".item", has_text=title).first
 
 
-@pytest.mark.parametrize("name", ["calendar", "all", "stats", "settings", "home"])
+@pytest.mark.parametrize("name", ["calendar", "all", "notes", "stats", "settings", "home"])
 def test_pages_open(page, name):
     page.click(f"nav [data-page={name}]")
     page.wait_for_timeout(300)
@@ -235,3 +235,312 @@ def test_animated_banner(page):
     expect(banner).to_be_visible()
     expect(banner.locator(".scene svg")).to_have_count(1)
     expect(page.locator(".item.scb", has_text="Тренировка")).to_have_count(0)  # без флага — обычная строка
+
+
+# ---------- Заметки ----------
+def api_call(pg, name, *args):
+    return pg.evaluate("([n, a]) => fetch('/api/' + n, {method: 'POST', body: JSON.stringify(a)}).then(r => r.json())", [name, list(args)])
+
+
+def add_note(pg, **fields):
+    return api_call(pg, "note_save", fields)["note"]
+
+
+def saved_notes(pg):
+    return api_call(pg, "notes")["notes"]
+
+
+def open_notes(pg):
+    pg.click("nav [data-page=notes]")
+    pg.wait_for_selector("#notesRoot")
+    pg.wait_for_timeout(300)
+
+
+def new_note(pg):
+    pg.click(".nnew [data-act=n-new]")
+    expect(pg.locator("#ntitle")).to_be_focused()
+
+
+def show_props(pg):
+    if not pg.locator("#nprops").is_visible():
+        pg.click(".ned-top [data-act=n-props]")
+    expect(pg.locator("#nprops")).to_be_visible()
+
+
+def test_notes_empty_state_and_create_with_autosave(page):
+    open_notes(page)
+    expect(page.locator(".nlist .empty")).to_contain_text("Пока пусто")
+    new_note(page)
+    page.keyboard.type("Список дел")
+    page.keyboard.press("Enter")                    # из заголовка — сразу в текст
+    expect(page.locator("#nbody")).to_be_focused()
+    page.keyboard.type("[] купить хлеб")            # «[] » в начале строки — пункт чек-листа
+    expect(page.locator("#nbody li[data-task='0']")).to_have_text("купить хлеб")
+    expect(page.locator("#nstatus")).to_have_text("Сохранено", timeout=3000)
+    n = saved_notes(page)
+    assert len(n) == 1 and n[0]["title"] == "Список дел" and n[0]["body"] == "- [ ] купить хлеб"
+    expect(page.locator(".ncard.cur")).to_contain_text("купить хлеб")
+
+
+def test_notes_text_survives_page_switch_and_background_refresh(page):
+    open_notes(page)
+    new_note(page)
+    page.keyboard.type("Черновик")
+    page.evaluate("app.refresh()")                  # как фоновое обновление раз в минуту
+    expect(page.locator("#ntitle")).to_have_value("Черновик")
+    expect(page.locator("#ntitle")).to_be_focused()
+    page.click("nav [data-page=home]")              # ушли до автосохранения — правка не теряется
+    page.wait_for_timeout(400)
+    assert saved_notes(page)[0]["title"] == "Черновик"
+
+
+def test_notes_empty_new_note_is_dropped(page):
+    open_notes(page)
+    new_note(page)
+    page.click("nav [data-page=home]")
+    page.wait_for_timeout(400)
+    assert saved_notes(page) == []
+
+
+def test_notes_markdown_roundtrip_and_formatting(page):
+    md = "### План\n\n- [x] Готово\n- [ ] Не готово\n\n> **Главная идея**\n> Всё просто\n\n1. Раз\n2. Два\n\nТекст 2\\*3 и [сайт](https://example.org)"
+    add_note(page, title="Формат", body=md)
+    open_notes(page)
+    body = page.locator("#nbody")
+    expect(body.locator("h4")).to_have_text("План")
+    expect(body.locator("li[data-task='1']")).to_have_text("Готово")
+    expect(body.locator("blockquote b")).to_have_text("Главная идея")
+    expect(body.locator("ol li")).to_have_count(2)
+    expect(body.locator("a")).to_have_attribute("href", "https://example.org")
+    assert "2*3" in body.inner_text()
+    # галочка кликом по квадратику
+    li = body.locator("li", has_text="Не готово")
+    box = li.bounding_box()
+    page.mouse.click(box["x"] - 16, box["y"] + box["height"] / 2)
+    expect(li).to_have_attribute("data-task", "1")
+    # жирный через панель
+    page.evaluate("""() => { const li = document.querySelector('#nbody ol li'); const r = document.createRange();
+      r.selectNodeContents(li); const s = getSelection(); s.removeAllRanges(); s.addRange(r); document.querySelector('#nbody').focus(); }""")
+    page.click("[data-act=n-cmd][data-v=bold]")
+    page.wait_for_timeout(900)
+    saved = saved_notes(page)[0]["body"]
+    assert "- [x] Не готово" in saved and "1. **Раз**" in saved and "2\\*3" in saved and "> **Главная идея**" in saved
+
+
+def test_notes_autoformat_heading_list_quote(page):
+    open_notes(page)
+    new_note(page)
+    page.keyboard.press("Enter")
+    for line in ["# Заголовок", "- пункт", ]:
+        page.keyboard.type(line)
+        page.keyboard.press("Enter")
+        page.keyboard.press("Enter") if line.startswith("-") else None
+    page.keyboard.type("> идея")
+    page.wait_for_timeout(900)
+    assert saved_notes(page)[0]["body"] == "# Заголовок\n\n- пункт\n\n> идея"
+
+
+def test_notes_search_by_content_tags_and_filters(page):
+    add_note(page, title="Поездка", body="Взять зарядку и паспорт", tags=["отпуск"])
+    add_note(page, title="Работа", body="Регресс по релизу", favorite=True, folder="Работа")
+    open_notes(page)
+    expect(page.locator(".ncard").first).to_contain_text("Работа")   # избранное — наверху
+    page.keyboard.press("Control+f")
+    expect(page.locator("#nq")).to_be_focused()
+    page.keyboard.type("ЗАРЯДК")                     # без учёта регистра, по тексту
+    expect(page.locator(".ncard")).to_have_count(1)
+    expect(page.locator(".ncard mark")).to_have_text("зарядк")
+    page.keyboard.press("Escape")
+    page.keyboard.type("отпуск")                     # и по тегам
+    expect(page.locator(".ncard")).to_have_count(1)
+    page.keyboard.press("Escape")
+    page.click("[data-act=n-filter][data-v=fav]")
+    expect(page.locator(".ncard")).to_have_count(1)
+    page.click("[data-act=n-filter][data-v=all]")
+    page.click("#ntabs [data-act=n-menu]")
+    page.click("[data-act=n-folder-filter][data-v='Работа']")
+    expect(page.locator(".ncard")).to_have_count(1)
+    expect(page.locator("#ntabs")).to_contain_text("Работа")
+
+
+def test_notes_folders_and_tags(page):
+    add_note(page, title="Идея", folder="Личное")
+    open_notes(page)
+    show_props(page)
+    page.click("#nprops [data-act=n-menu][data-v=pfolder]")
+    page.click("#nprops [data-act=n-folder-new]")
+    page.keyboard.type("Учёба")
+    page.keyboard.press("Enter")
+    expect(page.locator("#nprops .nsel").first).to_contain_text("Учёба")
+    page.click("#nprops [data-act=n-addtag]")
+    page.keyboard.type("#Важное")
+    page.keyboard.press("Enter")
+    page.keyboard.press("Escape")
+    expect(page.locator("#ntags .tg")).to_have_text("важное")
+    page.wait_for_timeout(600)
+    n = saved_notes(page)[0]
+    assert n["folder"] == "Учёба" and n["tags"] == ["важное"]
+    page.click(".ftags [data-act=n-tag]")              # тег внизу заметки — фильтр
+    expect(page.locator("#ntabs")).to_contain_text("#важное")
+    page.click("[data-act=n-untag]")
+    page.wait_for_timeout(600)
+    assert saved_notes(page)[0]["tags"] == []
+
+
+def test_notes_color_and_favorite(page):
+    add_note(page, title="Идея")
+    open_notes(page)
+    show_props(page)
+    page.click("[data-act=n-color][data-v=growth]")
+    page.click(".ned-top [data-act=n-fav]")
+    page.wait_for_timeout(500)
+    n = saved_notes(page)[0]
+    assert n["color"] == "growth" and n["favorite"] is True
+
+
+def test_notes_props_panel_toggles(page):
+    add_note(page, title="Идея")
+    open_notes(page)
+    expect(page.locator("#nprops")).to_be_hidden()     # окно 1280: свойства свёрнуты, тексту больше места
+    page.click(".ned-top [data-act=n-props]")
+    expect(page.locator("#nprops")).to_be_visible()
+    page.click("#nprops .ph [data-act=n-props]")
+    expect(page.locator("#nprops")).to_be_hidden()
+
+
+def test_notes_parse_when(page):
+    open_notes(page)
+    r = page.evaluate("""() => {
+      const t = new Date(2026, 9, 10);  // суббота
+      const f = (s) => { const w = NOTES.parseWhen(s, t); return [w.date ? iso(w.date) : null, w.time, w.title]; };
+      return [f("Позвонить в сервис в понедельник"), f("завтра в 15:30 созвон"), f("Купить билеты 12 октября"),
+              f("через 2 дня отчёт"), f("в 7 вечера спорт"), f("15.10 сдать проект"), f("просто текст")];
+    }""")
+    assert r == [["2026-10-12", None, "Позвонить в сервис"], ["2026-10-11", "15:30", "Созвон"], ["2026-10-12", None, "Купить билеты"],
+                 ["2026-10-12", None, "Отчёт"], [None, "19:00", "Спорт"], ["2026-10-15", None, "Сдать проект"], [None, None, "Просто текст"]]
+
+
+def test_notes_selection_to_reminder_and_back(page):
+    add_note(page, title="Ноутбук", body="Позвонить в сервис завтра в 15:00 насчёт ремонта")
+    open_notes(page)
+    page.evaluate("""() => { const p = document.querySelector('#nbody p'), tn = p.firstChild, s = tn.nodeValue;
+      const r = document.createRange(); r.setStart(tn, 0); r.setEnd(tn, s.indexOf(' насчёт'));
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); }""")
+    page.click(".nselpop [data-act=n-sel-remind]")
+    expect(page.locator("#overlay")).to_have_class(re.compile("open"))
+    expect(page.locator("#edTitle")).to_have_value("Позвонить в сервис")
+    expect(page.locator("#edTime")).to_have_value("15:00")
+    expect(page.locator("#edFromNote")).to_contain_text("«завтра»")
+    page.click("[data-act=ed-save]")
+    expect(page.locator("#nprops .nlr")).to_contain_text("Позвонить в сервис")
+    n = saved_notes(page)[0]
+    assert len(n["links"]) == 1
+    # из напоминания — обратно в заметку
+    page.click("#nprops .nlr-main")
+    expect(page.locator("#edNotes")).to_contain_text("Ноутбук")
+    page.keyboard.press("Escape")
+    page.click("nav [data-page=home]")
+    page.wait_for_timeout(300)
+    page.evaluate(f"app.openEditor('{n['links'][0]}')")
+    page.click("#edNotes [data-act=n-goto]")
+    expect(page.locator("#ntitle")).to_have_value("Ноутбук")
+
+
+def test_notes_link_existing_reminder_and_unlink(page):
+    add_note(page, title="Спорт")
+    open_notes(page)
+    show_props(page)
+    page.click("#nprops [data-act=n-menu][data-v=pick]")
+    page.keyboard.type("трен")
+    page.click(".nmenu.pick [data-act=n-link]")
+    expect(page.locator("#nprops .nlr")).to_contain_text("Тренировка")
+    page.wait_for_timeout(500)
+    assert len(saved_notes(page)[0]["links"]) == 1
+    page.hover("#nprops .nlr")
+    page.click("#nprops [data-act=n-unlink]")
+    page.wait_for_timeout(500)
+    assert saved_notes(page)[0]["links"] == []
+
+
+def test_notes_templates(page):
+    open_notes(page)
+    page.click(".nnew [data-act=n-tpl]")
+    expect(page.locator(".ntpl")).to_have_count(5)
+    page.click(".ntpl:has-text('Покупки')")
+    expect(page.locator("#ntitle")).to_have_value("Покупки")
+    expect(page.locator("#nbody li[data-task]")).to_have_count(3)
+    expect(page.locator(".ncard.cur .ic")).to_be_visible()
+    n = saved_notes(page)[0]
+    assert n["icon"] == "bag" and n["color"] == "home"
+
+
+def test_notes_export_markdown_download(page):
+    add_note(page, title="Экспорт", body="- [ ] пункт", tags=["тест"])
+    open_notes(page)
+    page.click(".ned-top [data-act=n-menu][data-v=more]")
+    page.click("[data-act=n-export]")
+    expect(page.locator(".nprev")).to_contain_text("# Экспорт")
+    page.click("[data-act=n-exp-fmt][data-v=txt]")
+    expect(page.locator(".nprev")).to_contain_text("☐ пункт")
+    with page.expect_download() as d:
+        page.click("[data-act=n-exp-save]")
+    assert d.value.suggested_filename == "Экспорт.txt"
+
+
+def test_notes_history_and_restore(page, base_url):
+    n = add_note(page, title="План", body="первый текст")
+    data_path = None
+    api_call(page, "note_save", {"id": n["id"], "body": "второй текст"})   # первая правка — старый текст уходит в историю
+    open_notes(page)
+    page.click(".ned-top [data-act=n-menu][data-v=more]")
+    page.click("[data-act=n-history]")
+    expect(page.locator(".nhist .ver.on")).to_be_visible()
+    expect(page.locator(".ndiff .dl.del")).to_contain_text("первый текст")
+    expect(page.locator(".ndiff .dl.ins")).to_contain_text("второй текст")
+    page.click("[data-act=n-restore]")
+    expect(page.locator("#nbody")).to_have_text("первый текст")
+    assert saved_notes(page)[0]["body"] == "первый текст"
+
+
+def test_notes_delete_slider_springs_back_and_burns(page):
+    add_note(page, title="Удали меня")
+    open_notes(page)
+    show_props(page)
+    page.locator("#nknob").scroll_into_view_if_needed()
+    knob = page.locator("#nknob").bounding_box()
+    x, y = knob["x"] + knob["width"] / 2, knob["y"] + knob["height"] / 2
+    page.mouse.move(x, y)
+    page.mouse.down()
+    page.mouse.move(x + 80, y, steps=5)              # не дотянул и отпустил — пружинит назад
+    page.mouse.up()
+    page.wait_for_timeout(700)
+    assert page.evaluate("getComputedStyle(document.querySelector('#nburn')).getPropertyValue('--p').trim()") == "0.0000"
+    assert len(saved_notes(page)) == 1
+    page.mouse.move(x, y)
+    page.mouse.down()
+    page.mouse.move(x + 400, y, steps=8)             # до конца — заметка сгорает
+    page.mouse.up()
+    expect(page.locator(".ncard")).to_have_count(0, timeout=3000)
+    assert saved_notes(page) == []
+
+
+def test_notes_delete_by_holding_delete_key(page):
+    add_note(page, title="Первая")
+    add_note(page, title="Вторая")
+    open_notes(page)
+    page.click(".ned-top [data-act=n-menu][data-v=more]")
+    page.click("[data-act=n-burn-focus]")            # ⋮ → «Удалить…» ставит фокус на ползунок
+    expect(page.locator("#nknob")).to_be_focused()
+    page.keyboard.down("Delete")
+    page.wait_for_timeout(300)
+    page.keyboard.up("Delete")                       # отпустил раньше — ничего не удалилось
+    page.wait_for_timeout(600)
+    assert len(saved_notes(page)) == 2
+    page.focus("#nknob")
+    page.keyboard.down("Delete")
+    page.wait_for_timeout(1500)
+    page.keyboard.up("Delete")
+    expect(page.locator(".ncard")).to_have_count(1, timeout=3000)
+    left = saved_notes(page)
+    assert len(left) == 1
+    expect(page.locator("#ntitle")).to_have_value(left[0]["title"])   # сразу открылась оставшаяся
